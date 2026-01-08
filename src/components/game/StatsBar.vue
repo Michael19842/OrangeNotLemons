@@ -1,7 +1,7 @@
 <template>
   <div class="stats-bar">
-    <!-- Row 1: Health, Money, Loyalty -->
-    <div class="stats-row">
+    <!-- Main Stats (Always visible) -->
+    <div class="stats-row main-stats">
       <div class="stat-item" :class="{ danger: stats.health < 30, warning: stats.health < 50 }">
         <span class="stat-icon">❤️</span>
         <div class="stat-bar-container">
@@ -25,37 +25,13 @@
         </div>
         <span class="stat-value">{{ stats.loyalty }}</span>
       </div>
-    </div>
 
-    <!-- Row 2: Support, Luck, Chaos, Coin Value -->
-    <div class="stats-row">
       <div class="stat-item" :class="{ warning: stats.support < 30 }">
         <span class="stat-icon">📊</span>
         <div class="stat-bar-container">
           <div class="stat-bar-fill support" :style="{ width: `${stats.support}%` }"></div>
         </div>
         <span class="stat-value">{{ stats.support }}</span>
-      </div>
-
-      <div class="stat-item">
-        <span class="stat-icon">🍀</span>
-        <div class="stat-bar-container">
-          <div class="stat-bar-fill luck" :style="{ width: `${stats.luck}%` }"></div>
-        </div>
-        <span class="stat-value">{{ stats.luck }}</span>
-      </div>
-
-      <div class="stat-item" :class="{ danger: stats.chaos > 80, warning: stats.chaos > 60, boost: stats.chaos > 40 && stats.chaos <= 60 }">
-        <span class="stat-icon">🌀</span>
-        <div class="stat-bar-container">
-          <div class="stat-bar-fill chaos" :style="{ width: `${stats.chaos}%` }"></div>
-        </div>
-        <span class="stat-value">{{ stats.chaos }}</span>
-      </div>
-
-      <div class="stat-item coin-value" :class="{ danger: stats.coinValuation < 70, warning: stats.coinValuation < 85, boost: stats.coinValuation > 115 }">
-        <span class="stat-icon">🪙</span>
-        <span class="stat-value coin-value-text">{{ stats.coinValuation }}%</span>
       </div>
     </div>
   </div>
@@ -82,16 +58,17 @@ function formatBillions(value: number): string {
 .stats-bar {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px;
+  gap: 0;
+  padding: 6px 8px;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 12px;
 }
 
-.stats-row {
+.stats-row.main-stats {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
+  justify-content: space-between;
 }
 
 .stat-item {

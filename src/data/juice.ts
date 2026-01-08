@@ -338,6 +338,19 @@ export function generateJuiceMessage(
 ): Omit<JuiceMessage, 'id' | 'turn'> {
   const rand = Math.random();
 
+  // Critical messages can always appear (more likely when stats are low)
+  let criticalChance = 0.15; // 15% base chance for critical messages
+  if (stats.loyalty < 40 || stats.health < 35 || stats.support < 30) {
+    criticalChance = 0.40; // 40% when stats are low
+  }
+  
+  if (rand < criticalChance) {
+    return {
+      text: CRITICAL_MESSAGES[Math.floor(Math.random() * CRITICAL_MESSAGES.length)],
+      type: 'critical'
+    };
+  }
+
   // Check for crisis (2+ stats below 40)
   const lowStats = Object.values(stats).filter(v => v < 40).length;
   if (lowStats >= 2 && rand < 0.15) {

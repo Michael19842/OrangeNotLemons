@@ -19,7 +19,7 @@ export const POLITICS_PLANS: PlanCard[] = [
         minScore: 50, maxScore: 100,
         title: 'HUGE Crowd!',
         description: 'Biggest rally ever! (Don\'t check aerial photos)',
-        immediateEffects: { loyalty: 25, support: 10, health: -8, chaos: 8, luck: 5 },
+        immediateEffects: { loyalty: 25, support: 10, health: -8, luck: 5 }, // Success: no chaos
         delayedEffects: [
           {
             turnsDelay: 3,
@@ -50,7 +50,7 @@ export const POLITICS_PLANS: PlanCard[] = [
         minScore: -100, maxScore: 19,
         title: 'Rally Gone Wrong',
         description: 'Said the quiet part loud. Several times.',
-        immediateEffects: { loyalty: 5, support: -15, health: -10, chaos: 20 },
+        immediateEffects: { loyalty: 5, support: -15, health: -10, chaos: 10 }, // Bad: reduced
         delayedEffects: [
           {
             turnsDelay: 1,
@@ -169,7 +169,7 @@ export const POLITICS_PLANS: PlanCard[] = [
         minScore: 55, maxScore: 100,
         title: 'Many Questions Raised!',
         description: 'Followers demand audits! Media covers it 24/7!',
-        immediateEffects: { loyalty: 25, support: -10, chaos: 25 },
+        immediateEffects: { loyalty: 25, support: -10, chaos: 10 }, // Reduced chaos
         delayedEffects: [
           {
             turnsDelay: 6,
@@ -225,7 +225,7 @@ export const POLITICS_PLANS: PlanCard[] = [
         minScore: 55, maxScore: 100,
         title: 'Justice Reformed!',
         description: 'Pardoned 50 people! All totally deserving!',
-        immediateEffects: { loyalty: 25, money: 500, chaos: 20 },
+        immediateEffects: { loyalty: 25, money: 500, chaos: 8 }, // Reduced chaos
         delayedEffects: [{
           turnsDelay: 6,
           description: 'Pardoned person immediately re-offends on TV',
@@ -247,7 +247,7 @@ export const POLITICS_PLANS: PlanCard[] = [
         minScore: -100, maxScore: 24,
         title: 'Pardon Backlash',
         description: 'Pardoned someone even your base hates.',
-        immediateEffects: { loyalty: -15, support: -15, chaos: 25 },
+        immediateEffects: { loyalty: -15, support: -15, chaos: 12 }, // Reduced chaos
         delayedEffects: [{
           turnsDelay: 1,
           description: 'Bipartisan condemnation',
@@ -274,7 +274,7 @@ export const POLITICS_PLANS: PlanCard[] = [
         minScore: 50, maxScore: 100,
         title: 'Swamp Drained!',
         description: 'Fired 12 officials! New loyalty secured!',
-        immediateEffects: { loyalty: 20, chaos: 20 },
+        immediateEffects: { loyalty: 20, chaos: 8 }, // Reduced chaos
         delayedEffects: [{
           turnsDelay: 3,
           description: 'Fired officials testifying to Congress',
@@ -296,7 +296,7 @@ export const POLITICS_PLANS: PlanCard[] = [
         minScore: -100, maxScore: 19,
         title: 'Obstruction Concerns',
         description: 'Fired the investigator investigating you. Oops.',
-        immediateEffects: { loyalty: -20, support: -15, chaos: 30 },
+        immediateEffects: { loyalty: -20, support: -15, chaos: 15 }, // Reduced chaos
         delayedEffects: [{
           turnsDelay: 1,
           description: 'Special counsel appointed',
@@ -428,7 +428,7 @@ export const POLITICS_PLANS: PlanCard[] = [
         minScore: -100, maxScore: 24,
         title: 'Recorded Everything',
         description: 'Guest had phone recording. Testimony incoming.',
-        immediateEffects: { loyalty: -25, support: -10, chaos: 25 },
+        immediateEffects: { loyalty: -25, support: -10, chaos: 12 }, // Reduced chaos
         delayedEffects: [{
           turnsDelay: 2,
           description: 'Transcript released to press',
@@ -472,7 +472,7 @@ export const POLITICS_PLANS: PlanCard[] = [
         minScore: -100, maxScore: 29,
         title: 'Immediately Derailed',
         description: 'Infrastructure week lasted 2 hours before tweet storm.',
-        immediateEffects: { support: -10, chaos: 20 },
+        immediateEffects: { support: -10, chaos: 10 }, // Reduced chaos
         delayedEffects: [{
           turnsDelay: 1,
           description: '"Infrastructure Week" becomes meme',

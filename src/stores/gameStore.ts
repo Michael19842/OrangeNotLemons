@@ -122,6 +122,9 @@ export const useGameStore = defineStore('game', () => {
   const highScore = ref(parseInt(localStorage.getItem('orangeHighScore') || '0'));
   const currentScore = ref(0);
 
+  // Annual report flag - set when it's time to show the report
+  const showAnnualReport = ref(false);
+
   // Computed
   const healthTier = computed(() => {
     const h = stats.value.health;
@@ -169,7 +172,8 @@ export const useGameStore = defineStore('game', () => {
     currentSlotTotal.value = 0;
     slotResults.value = [];
     currentScore.value = 0;
-    
+    showAnnualReport.value = false;
+
     // Reset achievements
     achievements.value = ACHIEVEMENTS.map(a => ({ ...a, unlocked: false }));
     newlyUnlockedAchievements.value = [];
@@ -328,6 +332,14 @@ export const useGameStore = defineStore('game', () => {
     // Generate some juice messages
     generateTurnJuice();
 
+    // Check if it's time for annual report (every 12 turns = 1 year)
+    // Do this AFTER all turn setup is complete
+    if (currentTurn.value > 0 && currentTurn.value % 12 === 0) {
+      showAnnualReport.value = true;
+      // Don't start timer - will be started when report is closed
+      return;
+    }
+
     // Start timer
     startTimer();
   }
@@ -369,9 +381,19 @@ export const useGameStore = defineStore('game', () => {
       }
     }
     
-    // Chaos naturally decays over time if low
-    if (chaos > 10 && chaos < 50) {
-      if (Math.random() < 0.3) { // 30% chance
+    // Chaos naturally decays over time - stronger decay at all levels
+    // This represents situations stabilizing without active intervention
+    if (chaos > 10) {
+      // Base decay: 50% chance of -1 chaos per turn
+      if (Math.random() < 0.5) {
+        stats.value.chaos = Math.max(0, stats.value.chaos - 1);
+      }
+      // Additional decay when support is good: another 30% chance of -1
+      if (stats.value.support > 50 && Math.random() < 0.3) {
+        stats.value.chaos = Math.max(0, stats.value.chaos - 1);
+      }
+      // Bonus decay when both support and loyalty are high: yet another 20% chance
+      if (stats.value.support > 70 && stats.value.loyalty > 70 && Math.random() < 0.2) {
         stats.value.chaos = Math.max(0, stats.value.chaos - 1);
       }
     }
@@ -488,6 +510,12 @@ export const useGameStore = defineStore('game', () => {
       clearInterval(timerInterval.value);
       timerInterval.value = null;
     }
+  }
+
+  function closeAnnualReport() {
+    showAnnualReport.value = false;
+    // Now start the timer for this turn
+    startTimer();
   }
 
   // Calculate actual cost based on coin valuation and support
@@ -646,9 +674,20 @@ export const useGameStore = defineStore('game', () => {
     const plan = selectedPlan.value;
     const score = currentSlotTotal.value;
 
-    // Find matching outcome
-    const outcome = plan.outcomes.find(o => score >= o.minScore && score <= o.maxScore)
-      || plan.outcomes[plan.outcomes.length - 1]; // Default to last (worst) outcome
+    // Find matching outcome - if score is above max, use best outcome
+    let outcome = plan.outcomes.find(o => score >= o.minScore && score <= o.maxScore);
+    
+    if (!outcome) {
+      // If no match, check if score is above all ranges (too good!)
+      const highestMaxScore = Math.max(...plan.outcomes.map(o => o.maxScore));
+      if (score > highestMaxScore) {
+        // Score is excellent! Use best outcome (first one)
+        outcome = plan.outcomes[0];
+      } else {
+        // Score is below all ranges, use worst outcome
+        outcome = plan.outcomes[plan.outcomes.length - 1];
+      }
+    }
 
     // Apply immediate effects
     applyEffects(outcome.immediateEffects);
@@ -709,9 +748,20 @@ export const useGameStore = defineStore('game', () => {
     // Set the score directly
     currentSlotTotal.value = blindScore;
 
-    // Find matching outcome
-    const outcome = plan.outcomes.find(o => blindScore >= o.minScore && blindScore <= o.maxScore)
-      || plan.outcomes[plan.outcomes.length - 1];
+    // Find matching outcome - if score is above max, use best outcome
+    let outcome = plan.outcomes.find(o => blindScore >= o.minScore && blindScore <= o.maxScore);
+    
+    if (!outcome) {
+      // If no match, check if score is above all ranges (too good!)
+      const highestMaxScore = Math.max(...plan.outcomes.map(o => o.maxScore));
+      if (blindScore > highestMaxScore) {
+        // Score is excellent! Use best outcome (first one)
+        outcome = plan.outcomes[0];
+      } else {
+        // Score is below all ranges, use worst outcome
+        outcome = plan.outcomes[plan.outcomes.length - 1];
+      }
+    }
 
     // Apply immediate effects
     applyEffects(outcome.immediateEffects);
@@ -751,18 +801,23 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function skipTurn() {
-    // Skipping costs stats (reduced penalties for balance)
-    stats.value.loyalty = Math.max(0, stats.value.loyalty - 2);
-    stats.value.support = Math.max(0, stats.value.support - 2);
+    // Going golfing restores health but costs loyalty and support
+    const healthGain = Math.min(15, 100 - stats.value.health); // +15 health (max 100)
+    stats.value.health = Math.min(100, stats.value.health + healthGain);
+    stats.value.loyalty = Math.max(0, stats.value.loyalty - 3);
+    stats.value.support = Math.max(0, stats.value.support - 3);
     
-    showStatChange('👥', -2);
-    showStatChange('📊', -2);
+    if (healthGain > 0) {
+      showStatChange('❤️', healthGain);
+    }
+    showStatChange('👥', -3);
+    showStatChange('📊', -3);
     
     // Track for achievement
     achievementTracking.value.turnsSkipped++;
 
     addJuiceMessage({
-      text: "😴 The Orange did nothing today. Followers are getting restless...",
+      text: "⛳ The Orange went golfing again. Advisors left waiting. Followers not happy... #ExecutiveTime",
       type: 'news'
     });
 
@@ -1313,6 +1368,7 @@ export const useGameStore = defineStore('game', () => {
     slotResults,
     highScore,
     currentScore,
+    showAnnualReport,
     achievements,
     newlyUnlockedAchievements,
     achievementTracking,
@@ -1326,6 +1382,7 @@ export const useGameStore = defineStore('game', () => {
     initGame,
     startTurn,
     stopTimer,
+    closeAnnualReport,
     selectPlan,
     researchPlan,
     researchPlanRandom,

@@ -28,7 +28,41 @@
         </button>
       </div>
 
-      <div class="achievements-grid">
+      <!-- Grouped view when "All" is selected -->
+      <div v-if="selectedCategory === 'all'" class="achievements-grouped">
+        <div
+          v-for="cat in categories.filter(c => c !== 'all')"
+          :key="cat"
+          class="category-group"
+        >
+          <h3 class="category-header">{{ categoryNames[cat] }}</h3>
+          <div class="achievements-grid">
+            <div
+              v-for="achievement in getAchievementsByCategory(cat)"
+              :key="achievement.id"
+              class="achievement-card"
+              :class="{ unlocked: achievement.unlocked, hidden: achievement.hidden && !achievement.unlocked }"
+            >
+              <div class="achievement-icon">{{ achievement.emoji }}</div>
+              <div class="achievement-info">
+                <div class="achievement-name">
+                  {{ achievement.hidden && !achievement.unlocked ? '???' : achievement.name }}
+                </div>
+                <div class="achievement-desc">
+                  {{ achievement.hidden && !achievement.unlocked ? 'Hidden achievement' : achievement.description }}
+                </div>
+                <div v-if="achievement.unlocked && achievement.unlockedAt" class="achievement-unlocked">
+                  Unlocked at turn {{ achievement.unlockedAt }}
+                </div>
+              </div>
+              <div v-if="!achievement.unlocked" class="achievement-lock">🔒</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Single category view -->
+      <div v-else class="achievements-grid">
         <div
           v-for="achievement in filteredAchievements"
           :key="achievement.id"
@@ -82,6 +116,10 @@ const filteredAchievements = computed(() => {
   }
   return gameStore.achievements.filter(a => a.category === selectedCategory.value);
 });
+
+function getAchievementsByCategory(category: string) {
+  return gameStore.achievements.filter(a => a.category === category);
+}
 
 const unlockedCount = computed(() => 
   gameStore.achievements.filter(a => a.unlocked).length
@@ -304,5 +342,32 @@ const progress = computed(() =>
 
 .achievement-card.unlocked .achievement-lock {
   display: none;
+}
+
+/* Grouped achievements styles */
+.achievements-grouped {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.category-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.category-header {
+  font-size: 1.1rem;
+  color: #ff6b35;
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgba(255, 107, 53, 0.3);
+  font-weight: 700;
+}
+
+.category-group .achievements-grid {
+  padding: 0;
 }
 </style>

@@ -13,6 +13,52 @@
       </div>
     </div>
 
+    <!-- Financial Summary (moved to top, full width) -->
+    <div class="summary-card full-width">
+      <h4 class="summary-title">💼 Financial Report</h4>
+      <div class="summary-stats">
+        <div class="summary-item">
+          <span class="summary-label">Net Worth</span>
+          <span class="summary-value" :class="{ positive: netWorth > 0, negative: netWorth < 0 }">
+            {{ netWorth }}B
+          </span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Effective Rate</span>
+          <span class="summary-value warning">{{ effectiveRate }}%</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Cost Modifier</span>
+          <span class="summary-value" :class="costModifierClass">{{ costModifier }}x</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">2nd Term Threshold</span>
+          <span class="summary-value">{{ loyaltyThreshold }}% loyalty</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Financial Forecast (moved under summary, full width) -->
+    <div class="forecast-card full-width">
+      <h4 class="forecast-title">📊 Financial Forecast</h4>
+      <div class="forecast-content">
+        <div class="forecast-item" :class="debtForecastClass">
+          <span class="forecast-icon">{{ debtForecastIcon }}</span>
+          <div class="forecast-details">
+            <div class="forecast-label">Debt Trajectory</div>
+            <div class="forecast-value">{{ debtForecastText }}</div>
+          </div>
+        </div>
+        <div class="forecast-item" :class="worthForecastClass">
+          <span class="forecast-icon">{{ worthForecastIcon }}</span>
+          <div class="forecast-details">
+            <div class="forecast-label">Net Worth Outlook</div>
+            <div class="forecast-value">{{ worthForecastText }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="charts-container">
       <!-- Money Chart -->
       <div class="chart-card">
@@ -73,52 +119,6 @@
           <path :d="chaosPath" class="chart-line chaos-line" />
           <path :d="interestPath" class="chart-line interest-line" />
         </svg>
-      </div>
-
-      <!-- Financial Summary -->
-      <div class="summary-card">
-        <h4 class="summary-title">Market Analysis</h4>
-        <div class="summary-stats">
-          <div class="summary-item">
-            <span class="summary-label">Net Worth</span>
-            <span class="summary-value" :class="{ positive: netWorth > 0, negative: netWorth < 0 }">
-              {{ netWorth }}B
-            </span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Effective Rate</span>
-            <span class="summary-value warning">{{ effectiveRate }}%</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Cost Modifier</span>
-            <span class="summary-value" :class="costModifierClass">{{ costModifier }}x</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">2nd Term Threshold</span>
-            <span class="summary-value">{{ loyaltyThreshold }}% loyalty</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Financial Forecast -->
-      <div class="forecast-card wide">
-        <h4 class="forecast-title">📊 Financial Forecast</h4>
-        <div class="forecast-content">
-          <div class="forecast-item" :class="debtForecastClass">
-            <span class="forecast-icon">{{ debtForecastIcon }}</span>
-            <div class="forecast-details">
-              <div class="forecast-label">Debt Trajectory</div>
-              <div class="forecast-value">{{ debtForecastText }}</div>
-            </div>
-          </div>
-          <div class="forecast-item" :class="worthForecastClass">
-            <span class="forecast-icon">{{ worthForecastIcon }}</span>
-            <div class="forecast-details">
-              <div class="forecast-label">Net Worth Outlook</div>
-              <div class="forecast-value">{{ worthForecastText }}</div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -383,7 +383,7 @@ const worthForecastText = computed(() => {
 .charts-container {
   flex: 1;
   overflow-y: auto;
-  padding: 8px;
+  padding: 0 8px 8px 8px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
@@ -495,40 +495,51 @@ const worthForecastText = computed(() => {
 }
 
 .summary-card {
-  grid-column: span 2;
   background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
-  border-radius: 8px;
-  padding: 10px;
-  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 16px;
+  border: 2px solid rgba(34, 197, 94, 0.3);
+  margin-bottom: 12px;
+}
+
+.summary-card.full-width {
+  grid-column: 1 / -1;
+  width: 100%;
 }
 
 .summary-title {
-  font-size: 0.7rem;
-  color: #94a3b8;
-  margin: 0 0 8px 0;
+  font-size: 0.9rem;
+  color: #22c55e;
+  margin: 0 0 12px 0;
   text-transform: uppercase;
   letter-spacing: 1px;
+  font-weight: 700;
 }
 
 .summary-stats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
 }
 
 .summary-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px;
+  border-radius: 8px;
 }
 
 .summary-label {
-  font-size: 0.6rem;
-  color: #64748b;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .summary-value {
-  font-size: 0.85rem;
+  font-size: 1rem;
   font-weight: 700;
   color: #e2e8f0;
 }
@@ -539,34 +550,41 @@ const worthForecastText = computed(() => {
 
 /* Forecast Card */
 .forecast-card {
-  background: rgba(30, 41, 59, 0.5);
-  border-radius: 8px;
-  padding: 12px;
-  border: 1px solid #334155;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border-radius: 12px;
+  padding: 16px;
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  margin-bottom: 12px;
+}
+
+.forecast-card.full-width {
+  grid-column: 1 / -1;
+  width: 100%;
 }
 
 .forecast-title {
-  font-size: 0.75rem;
-  color: #22c55e;
+  font-size: 0.9rem;
+  color: #3b82f6;
   font-weight: 700;
-  margin: 0 0 10px 0;
-  text-align: center;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .forecast-content {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 .forecast-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px;
+  gap: 12px;
+  padding: 14px;
   background: rgba(0, 0, 0, 0.3);
-  border-radius: 6px;
-  border-left: 3px solid #64748b;
+  border-radius: 8px;
+  border-left: 4px solid #64748b;
 }
 
 .forecast-item.forecast-safe {
@@ -598,7 +616,7 @@ const worthForecastText = computed(() => {
 }
 
 .forecast-label {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   color: #94a3b8;
   font-weight: 600;
   text-transform: uppercase;
@@ -606,9 +624,9 @@ const worthForecastText = computed(() => {
 }
 
 .forecast-value {
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   color: #e2e8f0;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* Scrollbar */

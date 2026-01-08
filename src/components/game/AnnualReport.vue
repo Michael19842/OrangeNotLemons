@@ -103,7 +103,6 @@ import { useGameStore } from '@/stores/gameStore';
 
 const gameStore = useGameStore();
 
-const showReport = ref(false);
 const reportYear = ref(1);
 const yearStartStats = ref({
   health: 100,
@@ -115,30 +114,19 @@ const yearStartStats = ref({
 // Track events throughout the year
 const yearEvents = ref<Array<{ icon: string; description: string }>>([]);
 
-const emit = defineEmits<{
-  close: [];
-}>();
+// Use the gameStore's showAnnualReport flag
+const showReport = computed(() => gameStore.showAnnualReport);
 
-// Check if it's time for annual report (every 12 turns = 1 year)
-watch(() => gameStore.currentTurn, (newTurn, oldTurn) => {
-  if (newTurn > 0 && newTurn % 12 === 0 && newTurn !== oldTurn && !showReport.value) {
-    // Show annual report
-    showAnnualReport();
+// Update reportYear when report is shown
+watch(showReport, (isShowing) => {
+  if (isShowing) {
+    reportYear.value = Math.floor(gameStore.currentTurn / 12);
   }
 });
 
-function showAnnualReport() {
-  reportYear.value = Math.floor(gameStore.currentTurn / 12);
-  showReport.value = true;
-  
-  // Stop the timer
-  gameStore.stopTimer();
-}
-
 function closeReport() {
-  showReport.value = false;
   yearEvents.value = [];
-  
+
   // Store current stats for next year comparison
   yearStartStats.value = {
     health: gameStore.stats.health,
@@ -146,10 +134,9 @@ function closeReport() {
     loyalty: gameStore.stats.loyalty,
     support: gameStore.stats.support
   };
-  
-  // Timer will restart automatically on next turn via startTurn()
-  
-  emit('close');
+
+  // Close report and start the timer via gameStore
+  gameStore.closeAnnualReport();
 }
 
 const statComparison = computed(() => {

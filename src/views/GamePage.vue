@@ -6,34 +6,39 @@
         <div class="header-sticky">
           <GameHeader />
           <StatsBar />
-        </div>
-        
-        <!-- Tab Navigation -->
-        <div class="tab-navigation">
-          <button
-            class="tab-btn"
-            :class="{ active: activeTab === 'juice' }"
-            @click="setActiveTab('juice')"
-          >
-            <span class="tab-icon">🍊</span>
-            <span class="tab-label">The Juice</span>
-          </button>
-          <button
-            class="tab-btn"
-            :class="{ active: activeTab === 'cliff' }"
-            @click="setActiveTab('cliff')"
-          >
-            <span class="tab-icon">📈</span>
-            <span class="tab-label">Cliff Street</span>
-          </button>
-          <button
-            class="tab-btn"
-            :class="{ active: activeTab === 'polls' }"
-            @click="setActiveTab('polls')"
-          >
-            <span class="tab-icon">📊</span>
-            <span class="tab-label">Polls</span>
-          </button>
+          
+          <!-- Tab Navigation (always visible) -->
+          <div class="tab-navigation">
+            <button
+              class="tab-btn"
+              :class="{ active: activeTab === 'juice' }"
+              @click="setActiveTab('juice')"
+            >
+              <span class="tab-icon">🍊</span>
+              <span class="tab-label">
+                The Juice
+                <span v-if="unreadCriticalJuiceCount > 0" class="notification-badge">
+                  {{ unreadCriticalJuiceCount }}
+                </span>
+              </span>
+            </button>
+            <button
+              class="tab-btn"
+              :class="{ active: activeTab === 'cliff' }"
+              @click="setActiveTab('cliff')"
+            >
+              <span class="tab-icon">📈</span>
+              <span class="tab-label">Cliff Street</span>
+            </button>
+            <button
+              class="tab-btn"
+              :class="{ active: activeTab === 'polls' }"
+              @click="setActiveTab('polls')"
+            >
+              <span class="tab-icon">📊</span>
+              <span class="tab-label">Polls</span>
+            </button>
+          </div>
         </div>
 
         <!-- Tab Content -->
@@ -71,8 +76,13 @@
       <!-- Fixed Action Buttons -->
       <div class="action-section-fixed">
         <div class="action-buttons-wrapper">
-          <button class="action-btn plan-btn" @click="openPlanSelector">
+          <button 
+            class="action-btn plan-btn" 
+            @click="openPlanSelector"
+            :class="{ 'plan-urgent': shouldHighlightPlan }"
+          >
             🃏 Plan
+            <span v-if="shouldHighlightPlan" class="plan-badge urgent">!</span>
           </button>
           <button 
             class="action-btn rant-btn" 
@@ -84,7 +94,7 @@
             <span v-else-if="shouldPromptRant" class="rant-badge urgent">!</span>
           </button>
           <button class="action-btn skip-btn" @click="skipTurn" :disabled="selectedPlan !== null">
-            ⏭️ Skip
+            ⛳ Go Golf
           </button>
         </div>
       </div>
@@ -250,12 +260,26 @@ import SlotMachine from '@/components/game/SlotMachine.vue';
 import GameOverModal from '@/components/game/GameOverModal.vue';
 import StatChangePopover from '@/components/game/StatChangePopover.vue';
 import AnnualReport from '@/components/game/AnnualReport.vue';
+import AchievementToast from '@/components/game/AchievementToast.vue';
 
 const gameStore = useGameStore();
 const { playSound, playMusic, stopMusic, preloadAudio, unlockAudio } = useAudio();
 
-// Preload audio on mount
+const showPlanSelector = ref(false);
+const showRantModal = ref(false);
+const rantText = ref('');
+const botCount = ref(0);
+const activeTab = ref<'juice' | 'cliff' | 'polls'>('juice');
+const lastFreeBotTurn = ref(0);
+const currentAchievementToast = ref<any>(null);
+const lastReadJuiceCount = ref(0);
+
+// Preload audio and initialize on mount
 onMounted(() => {
+  // Initialize critical juice count
+  const criticalMessages = gameStore.juiceMessages.filter(m => m.type === 'critical');
+  lastReadJuiceCount.value = criticalMessages.length;
+  
   preloadAudio();
   // Unlock audio on first click anywhere
   const unlockOnClick = () => {
@@ -268,13 +292,33 @@ onMounted(() => {
   document.addEventListener('touchstart', unlockOnClick, { once: true });
 });
 
-const showPlanSelector = ref(false);
-const showRantModal = ref(false);
-const rantText = ref('');
-const botCount = ref(0);
-const activeTab = ref<'juice' | 'cliff' | 'polls'>('juice');
-const lastFreeBotTurn = ref(0);
-const currentAchievementToast = ref<any>(null);
+// Critical juice count - messages that need moderation action
+const unreadCriticalJuiceCount = computed(() => {
+  const currentMessages = gameStore.juiceMessages;
+  
+  // Only count messages that are truly critical and need action
+  const criticalMessages = currentMessages.filter(m => 
+    m.isCritical === true && m.hasBeenModerated !== true
+  );
+  const currentCount = criticalMessages.length;
+  
+  console.log('🔴 Critical messages debug:', {
+    total: currentMessages.length,
+    needAction: currentCount,
+    activeTab: activeTab.value
+  });
+  
+  console.log('🔴 Badge count:', currentCount);
+  return currentCount;
+});
+
+// Mark juice as read when switching to juice tab (optional - not used anymore)
+watch(activeTab, (newTab) => {
+  if (newTab === 'juice') {
+    const criticalMessages = gameStore.juiceMessages.filter(m => m.type === 'critical');
+    lastReadJuiceCount.value = criticalMessages.length;
+  }
+});
 
 // Watch for new achievements
 watch(() => gameStore.newlyUnlockedAchievements.length, (newCount, oldCount) => {
@@ -302,6 +346,11 @@ const hasFreeBots = computed(() => {
 const shouldPromptRant = computed(() => {
   // Prompt rant if stats are low
   return gameStore.stats.support < 40 || gameStore.stats.loyalty < 50;
+});
+
+// Highlight plan button when time is running low
+const shouldHighlightPlan = computed(() => {
+  return gameStore.timeRemaining <= 10 && gameStore.timeRemaining > 0 && !gameStore.selectedPlan;
 });
 
 function setActiveTab(tab: 'juice' | 'cliff' | 'polls') {
@@ -467,16 +516,20 @@ onUnmounted(() => {
   z-index: 100;
   background: linear-gradient(180deg, #1a1a2e 0%, rgba(26, 26, 46, 0.95) 100%);
   margin: -8px -8px 0 -8px;
-  padding: 8px 8px 12px 8px;
+  padding: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .tab-navigation {
   display: flex;
-  gap: 4px;
-  padding: 4px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 12px;
+  gap: 2px;
+  padding: 0;
+  background: transparent;
+  border-bottom: 2px solid rgba(255, 107, 53, 0.3);
+  margin-top: 8px;
 }
 
 .tab-btn {
@@ -485,24 +538,36 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 12px;
-  background: transparent;
-  border: none;
-  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 2px solid rgba(255, 107, 53, 0.2);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
   color: #71767b;
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  position: relative;
+  margin-bottom: -2px;
 }
 
 .tab-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 107, 53, 0.1);
+  color: #aaa;
+  transform: translateY(-2px);
 }
 
 .tab-btn.active {
-  background: rgba(255, 107, 53, 0.2);
+  background: linear-gradient(180deg, rgba(255, 107, 53, 0.25) 0%, rgba(255, 107, 53, 0.15) 100%);
+  border-color: rgba(255, 107, 53, 0.6);
+  border-bottom: 2px solid #1a1a2e;
   color: #ff6b35;
+  transform: translateY(-2px);
+  z-index: 10;
+  box-shadow: 
+    0 -2px 10px rgba(255, 107, 53, 0.3),
+    inset 0 1px 0 rgba(255, 107, 53, 0.4);
 }
 
 .tab-icon {
@@ -511,6 +576,43 @@ onUnmounted(() => {
 
 .tab-label {
   font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+
+.notification-badge {
+  position: relative;
+  top: 0;
+  right: 0;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 8px;
+  min-width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.6);
+  animation: badge-pulse 2s ease-in-out infinite;
+  z-index: 20;
+  margin-left: 2px;
+}
+
+@keyframes badge-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.6);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.8);
+  }
 }
 
 .tab-content {
@@ -621,11 +723,49 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
   color: white;
   box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4);
+  position: relative;
 }
 
 .plan-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 30px rgba(255, 107, 53, 0.6);
+}
+
+.plan-btn.plan-urgent {
+  animation: pulse-plan-urgent 1.5s ease-in-out infinite;
+  background: linear-gradient(135deg, #fbbf24 0%, #ff6b35 100%);
+}
+
+@keyframes pulse-plan-urgent {
+  0%, 100% { 
+    box-shadow: 0 4px 20px rgba(251, 191, 36, 0.5);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 6px 35px rgba(251, 191, 36, 0.9);
+    transform: scale(1.05);
+  }
+}
+
+.plan-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 6px;
+  border-radius: 50%;
+  min-width: 20px;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(251, 191, 36, 0.8);
+  animation: badge-bounce 0.6s ease-in-out infinite;
+}
+
+@keyframes badge-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
 }
 
 .rant-btn {
@@ -678,13 +818,14 @@ onUnmounted(() => {
 }
 
 .skip-btn {
-  background: rgba(239, 68, 68, 0.2);
-  border: 2px solid rgba(239, 68, 68, 0.5);
-  color: #ef4444;
+  background: rgba(34, 197, 94, 0.15);
+  border: 2px solid rgba(34, 197, 94, 0.4);
+  color: #22c55e;
 }
 
 .skip-btn:hover {
-  background: rgba(239, 68, 68, 0.3);
+  background: rgba(34, 197, 94, 0.25);
+  border-color: rgba(34, 197, 94, 0.6);
 }
 
 .slot-phase {

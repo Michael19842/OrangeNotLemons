@@ -64,7 +64,7 @@ export interface PlanCard {
 export interface JuiceMessage {
   id: string;
   text: string;
-  type: 'news' | 'rumor' | 'hint' | 'nonsense' | 'player';
+  type: 'news' | 'rumor' | 'hint' | 'nonsense' | 'player' | 'critical';
   relatedPlanId?: string;
   turn: number;
   isCritical?: boolean;

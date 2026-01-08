@@ -87,9 +87,11 @@ const slides = [
     title: 'The Orange Rises',
     content: defineComponent({
       render: () => h('p', { class: 'slide-text' }, [
-        'Against all odds, ',
+        'Against ',
+        h('em', 'tremendous'),
+        ' odds, ',
         h('strong', 'The Orange'),
-        ' has reached the highest office in Fruitland. But power comes with secrets...'
+        ' - the oldest, most spray-tanned fruit in Fruitland - somehow won! Now the real challenge begins: staying in power without anyone discovering the truth...'
       ])
     })
   },
@@ -98,51 +100,82 @@ const slides = [
     title: 'The Lemon Files',
     content: defineComponent({
       render: () => h('p', { class: 'slide-text' }, [
-        'Buried deep in the archives lie the ',
-        h('strong', 'Lemon Files'),
-        ' - documents detailing questionable dealings with the ',
-        h('em', 'Mandarin Business'),
-        '. If these files leak, it\'s game over.'
+        'Deep in the basement vault lie the ',
+        h('strong', { style: 'color: #ffc107' }, '🍋 Lemon Files'),
+        ' - explosive documents about shady deals with the ',
+        h('em', 'Mandarin Empire'),
+        ', tax returns that mysteriously vanish, and loans from the ',
+        h('em', 'Banana Republic Bank'),
+        '. Your inner circle knows ',
+        h('strong', 'everything'),
+        '. Keep them loyal, or the leaks destroy you!'
       ])
     })
   },
   {
     icon: '🎭',
-    title: 'The Art of Distraction',
+    title: 'Your Mission',
     content: defineComponent({
-      render: () => h('p', { class: 'slide-text' }, 
-        'Your mission: Create chaos, generate headlines, and keep everyone distracted while protecting your inner circle\'s loyalty. Manage your health, wealth, and public support carefully - you\'re not getting any younger.'
-      )
+      render: () => h('div', { class: 'mission-container' }, [
+        h('p', { class: 'slide-text mission-intro' }, [
+          'You\'re in the big chair now! Survive ',
+          h('strong', '48 crazy months'),
+          ' by juggling four critical stats:'
+        ]),
+        h('div', { class: 'resource-list' }, [
+          h('div', { class: 'resource-item' }, [
+            h('div', { class: 'resource-icon' }, '❤️'),
+            h('div', { class: 'resource-name' }, 'Health'),
+            h('div', { class: 'resource-desc' }, 'You\'re 78. Hamburgers are risky.')
+          ]),
+          h('div', { class: 'resource-item' }, [
+            h('div', { class: 'resource-icon' }, '💰'),
+            h('div', { class: 'resource-name' }, 'Money'),
+            h('div', { class: 'resource-desc' }, 'Bribes cost cash. Lots of it.')
+          ]),
+          h('div', { class: 'resource-item' }, [
+            h('div', { class: 'resource-icon' }, '👥'),
+            h('div', { class: 'resource-name' }, 'Loyalty'),
+            h('div', { class: 'resource-desc' }, 'They know too much. Keep \'em happy!')
+          ]),
+          h('div', { class: 'resource-item' }, [
+            h('div', { class: 'resource-icon' }, '📊'),
+            h('div', { class: 'resource-name' }, 'Support'),
+            h('div', { class: 'resource-desc' }, 'Ratings = power. Don\'t tank!')
+          ])
+        ])
+      ])
     })
   },
   {
     icon: '🎰',
-    title: 'How It Works',
+    title: 'How To Play',
     content: defineComponent({
-      render: () => h('div', { class: 'gameplay-grid' }, [
-        h('div', { class: 'gameplay-item' }, [
-          h('span', { class: 'gp-icon' }, '📅'),
-          h('span', { class: 'gp-text' }, [h('strong', '48 Months'), ' to survive your term'])
+      render: () => h('div', { class: 'howto-container' }, [
+        h('div', { class: 'howto-step' }, [
+          h('span', { class: 'step-num' }, '1'),
+          h('span', { class: 'step-text' }, [
+            h('strong', 'Pick a wild plan'),
+            ' - Tariffs? Hamburger summit? You decide!'
+          ])
         ]),
-        h('div', { class: 'gameplay-item' }, [
-          h('span', { class: 'gp-icon' }, '🃏'),
-          h('span', { class: 'gp-text' }, ['Choose ', h('strong', 'plan cards'), ' each turn'])
+        h('div', { class: 'howto-step' }, [
+          h('span', { class: 'step-num' }, '2'),
+          h('span', { class: 'step-text' }, [
+            h('strong', 'Dig for dirt'),
+            ' - Spend 💰 or ❤️ to uncover what could go wrong'
+          ])
         ]),
-        h('div', { class: 'gameplay-item' }, [
-          h('span', { class: 'gp-icon' }, '⏱️'),
-          h('span', { class: 'gp-text' }, [h('strong', '30 seconds'), ' to decide'])
+        h('div', { class: 'howto-step' }, [
+          h('span', { class: 'step-num' }, '3'),
+          h('span', { class: 'step-text' }, [
+            h('strong', 'Spin the slots'),
+            ' - Lady Luck decides if you\'re a genius or a disaster'
+          ])
         ]),
-        h('div', { class: 'gameplay-item' }, [
-          h('span', { class: 'gp-icon' }, '🔍'),
-          h('span', { class: 'gp-text' }, ['Investigate cards with ', h('strong', '💰 or ❤️')])
-        ]),
-        h('div', { class: 'gameplay-item' }, [
-          h('span', { class: 'gp-icon' }, '🎰'),
-          h('span', { class: 'gp-text' }, ['Spin the ', h('strong', 'fruit machine')])
-        ]),
-        h('div', { class: 'gameplay-item' }, [
-          h('span', { class: 'gp-icon' }, '⚠️'),
-          h('span', { class: 'gp-text' }, ['Face ', h('strong', 'delayed consequences')])
+        h('div', { class: 'howto-note' }, [
+          h('span', { class: 'note-icon' }, '⏱️'),
+          h('span', 'You get 30 seconds per turn. Tick tock! Skip = penalties.')
         ])
       ])
     })
@@ -152,25 +185,28 @@ const slides = [
     title: 'Win or Lose',
     content: defineComponent({
       render: () => h('div', { class: 'stakes-container' }, [
-        h('div', { class: 'stakes-intro' }, [
-          h('p', { class: 'stakes-text' }, 'Keep your stats balanced to survive!')
-        ]),
         h('div', { class: 'stakes-grid' }, [
           h('div', { class: 'stake-item win' }, [
             h('span', { class: 'stake-icon' }, '👑'),
             h('div', { class: 'stake-content' }, [
-              h('strong', 'Victory'),
-              h('p', 'Loyalty ≥ 85% after 48 months'),
-              h('p', { class: 'bonus' }, '+ Second term = 2x score!')
+              h('strong', '🏆 Victory Conditions'),
+              h('p', 'Survive 48 months with Loyalty high & Support above 40%'),
+              h('p', { class: 'bonus' }, '✨ High loyalty = Second term! Can you last 96 months?')
             ])
           ]),
           h('div', { class: 'stake-item lose' }, [
             h('span', { class: 'stake-icon' }, '💀'),
             h('div', { class: 'stake-content' }, [
-              h('strong', 'Game Over'),
-              h('p', 'Health = 0 or Loyalty = 0')
+              h('strong', '☠️ You\'re Done If...'),
+              h('p', '❤️ Health = 0: Too many hamburgers. Flatline!'),
+              h('p', '👥 Loyalty = 0: LEAKS! The Lemon Files go public!'),
+              h('p', 'Term ends with terrible ratings = You\'re fired!')
             ])
           ])
+        ]),
+        h('div', { class: 'stakes-tip' }, [
+          h('span', { class: 'tip-icon' }, '🔥'),
+          h('span', 'PRO TIP: Chaos is your friend! More scandals = lower loyalty needed to survive!')
         ])
       ])
     })
@@ -259,7 +295,7 @@ function continueToGame() {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 107, 53, 0.2);
   border-radius: 16px;
-  padding: 32px 24px;
+  padding: 40px 28px;
   text-align: center;
   overflow-y: auto;
   max-height: calc(100vh - 200px);
@@ -307,7 +343,7 @@ function continueToGame() {
 /* Slide Content */
 .story-icon {
   font-size: 3.5rem;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
   display: inline-block;
   animation: pulse 2s ease-in-out infinite;
 }
@@ -320,16 +356,16 @@ function continueToGame() {
 .slide h2 {
   font-size: 1.6rem;
   color: #ff6b35;
-  margin: 0 0 16px 0;
+  margin: 0 0 24px 0;
   font-weight: 700;
 }
 
 .slide p,
 .slide-text {
-  font-size: 1rem;
-  line-height: 1.7;
+  font-size: 1.05rem;
+  line-height: 1.8;
   color: #ccc;
-  margin: 0 0 12px 0;
+  margin: 0 0 16px 0;
 }
 
 .slide-text strong {
@@ -342,77 +378,145 @@ function continueToGame() {
   font-style: italic;
 }
 
-.gameplay-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 16px;
+/* Mission slide - Resource list */
+.mission-container {
+  text-align: center;
 }
 
-.gameplay-item {
+.mission-intro {
+  margin-bottom: 28px !important;
+  font-size: 1.1rem !important;
+}
+
+.resource-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin: 0 auto;
+  max-width: 480px;
+}
+
+.resource-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-align: center;
-  padding: 12px;
+  justify-content: center;
+  padding: 28px 24px;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
+  border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
   transition: all 0.3s ease;
+  text-align: center;
 }
 
-.gameplay-item:hover {
-  background: rgba(255, 107, 53, 0.1);
+.resource-item:hover {
+  background: rgba(255, 107, 53, 0.08);
+  border-color: rgba(255, 107, 53, 0.4);
   transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 53, 0.15);
 }
 
-.gp-icon {
-  font-size: 1.8rem;
-  margin-bottom: 8px;
+.resource-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  display: block;
 }
 
-.gp-text {
-  font-size: 0.8rem;
-  color: #aaa;
-  line-height: 1.3;
+.resource-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ff6b35;
+  margin-bottom: 12px;
+  display: block;
+  letter-spacing: 0.5px;
 }
 
-.story-section.stakes {
-  background: linear-gradient(135deg, rgba(255, 107, 53, 0.05), rgba(239, 68, 68, 0.05));
-  border-color: rgba(255, 107, 53, 0.3);
+.resource-desc {
+  font-size: 0.9rem;
+  color: #bbb;
+  line-height: 1.6;
+  display: block;
+  max-width: 100%;
 }
 
-.stakes-container {
+/* How to play slide */
+.howto-container {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.stakes-intro {
-  text-align: center;
-  padding: 12px;
-  background: rgba(255, 107, 53, 0.1);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 107, 53, 0.3);
+.howto-step {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border-left: 3px solid #ff6b35;
 }
 
-.stakes-text {
+.step-num {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ff6b35, #f7931e);
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: white;
+  flex-shrink: 0;
+}
+
+.step-text {
   font-size: 0.95rem;
-  color: #e2e8f0;
-  margin: 0;
-  font-weight: 600;
+  color: #ccc;
+  text-align: left;
+  line-height: 1.6;
+}
+
+.step-text strong {
+  color: #ff6b35;
+}
+
+.howto-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #ffc107;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.note-icon {
+  font-size: 1.2rem;
+}
+
+.stakes-container {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
 .stakes-grid {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .stake-item {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 16px;
+  gap: 14px;
+  padding: 18px 16px;
   background: rgba(255, 255, 255, 0.03);
   border-radius: 12px;
   border: 2px solid rgba(255, 255, 255, 0.1);
@@ -445,23 +549,41 @@ function continueToGame() {
 .stake-content strong {
   display: block;
   color: #ff6b35;
-  font-size: 0.95rem;
-  margin-bottom: 6px;
+  font-size: 1rem;
+  margin-bottom: 10px;
   font-weight: 700;
 }
 
 .stake-content p {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: #aaa;
-  margin: 2px 0;
-  line-height: 1.3;
+  margin: 4px 0;
+  line-height: 1.5;
 }
 
 .stake-content .bonus {
   color: #22c55e;
   font-weight: 600;
-  margin-top: 6px;
-  font-size: 0.75rem;
+  margin-top: 8px;
+  font-size: 0.8rem;
+}
+
+.stakes-tip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #a78bfa;
+  line-height: 1.5;
+}
+
+.tip-icon {
+  font-size: 1.1rem;
 }
 
 /* Navigation Buttons */

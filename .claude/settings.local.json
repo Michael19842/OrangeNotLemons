@@ -7,7 +7,9 @@
       "Bash(npx cap sync:*)",
       "Bash(npm run build:apk:*)",
       "Bash(./gradlew.bat assembleDebug)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npm run test:*)",
+      "Bash(npm run:*)"
     ]
   }
 }

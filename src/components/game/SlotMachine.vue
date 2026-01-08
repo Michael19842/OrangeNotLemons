@@ -101,6 +101,15 @@
       >
         ✓ Execute Plan
       </button>
+
+      <button
+        v-if="spinsRemaining === 0 && !isSpinning"
+        class="abandon-btn"
+        @click="abandonPlan"
+        title="Give up on this plan and take standard penalties"
+      >
+        🚫 Abandon Plan
+      </button>
     </div>
   </div>
 </template>
@@ -160,7 +169,22 @@ function getReelStyle(index: number) {
 }
 
 function isOutcomeActive(outcome: PlanOutcome): boolean {
-  return totalScore.value >= outcome.minScore && totalScore.value <= outcome.maxScore;
+  if (!selectedPlan.value) return false;
+  
+  const score = totalScore.value;
+  
+  // Check if score is within range
+  if (score >= outcome.minScore && score <= outcome.maxScore) {
+    return true;
+  }
+  
+  // If score is above all ranges, mark the best outcome (first one)
+  const highestMaxScore = Math.max(...selectedPlan.value.outcomes.map(o => o.maxScore));
+  if (score > highestMaxScore && outcome === selectedPlan.value.outcomes[0]) {
+    return true;
+  }
+  
+  return false;
 }
 
 function getScoreClass(score: number): string {
@@ -252,6 +276,27 @@ function execute() {
   gameStore.executePlan();
 }
 
+function abandonPlan() {
+  playSound('lose');
+  
+  // Apply standard penalties for abandoning
+  gameStore.stats.loyalty = Math.max(0, gameStore.stats.loyalty - 5);
+  gameStore.stats.support = Math.max(0, gameStore.stats.support - 5);
+  
+  gameStore.showStatChange('👥', -5);
+  gameStore.showStatChange('📊', -5);
+  
+  gameStore.addJuiceMessage({
+    text: `🚫 The Orange backed out of "${gameStore.selectedPlan?.name}". Looks weak. Followers disappointed. #NoCommitment`,
+    type: 'news'
+  });
+  
+  // Deselect plan and continue
+  gameStore.selectedPlan = null;
+  gameStore.currentTurn++;
+  gameStore.startTurn();
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -272,7 +317,7 @@ watch(() => gameStore.selectedPlan, () => {
   padding: 12px;
   border: 3px solid #ff6b35;
   box-shadow: 0 0 30px rgba(255, 107, 53, 0.3);
-  max-height: 75vh;
+  max-height: 80vh;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -410,15 +455,16 @@ watch(() => gameStore.selectedPlan, () => {
 .machine-display {
   background: linear-gradient(145deg, #0a0a15 0%, #1a1a2e 100%);
   border-radius: 12px;
-  padding: 12px;
-  height: 120px;
+  padding: 16px 12px;
+  min-height: 140px;
+  max-height: none;
   border: 2px solid rgba(255, 107, 53, 0.3);
   box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.8);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .spin-result {
@@ -494,6 +540,7 @@ watch(() => gameStore.selectedPlan, () => {
 .total-display {
   text-align: center;
   width: 100%;
+  padding: 8px 0;
 }
 
 .total-label {
@@ -501,16 +548,16 @@ watch(() => gameStore.selectedPlan, () => {
   color: #888;
   text-transform: uppercase;
   letter-spacing: 2px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .total-value {
-  font-size: 2rem;
+  font-size: 2.2rem;
   font-weight: bold;
   font-family: 'Courier New', monospace;
   text-shadow: 0 0 20px currentColor;
-  line-height: 1;
-  margin-bottom: 8px;
+  line-height: 1.2;
+  margin-bottom: 16px;
 }
 
 .total-value.excellent {
@@ -538,26 +585,26 @@ watch(() => gameStore.selectedPlan, () => {
 .total-breakdown {
   display: flex;
   justify-content: center;
-  gap: 6px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 107, 53, 0.2);
-  max-height: 40px;
-  overflow: hidden;
+  margin-top: 12px;
+  padding: 12px 8px 0 8px;
+  border-top: 2px solid rgba(255, 107, 53, 0.3);
+  max-width: 100%;
 }
 
 .breakdown-item {
-  background: rgba(0, 0, 0, 0.4);
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  border: 1px solid rgba(255, 107, 53, 0.4);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  border: 2px solid rgba(255, 107, 53, 0.4);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   transition: all 0.2s;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .breakdown-item:hover {
@@ -718,6 +765,32 @@ watch(() => gameStore.selectedPlan, () => {
 .execute-btn:active {
   transform: translateY(0);
 }
+
+.abandon-btn {
+  background: linear-gradient(145deg, #6b7280 0%, #4b5563 100%);
+  border: 2px solid rgba(239, 68, 68, 0.5);
+  color: white;
+  padding: 12px 24px;
+  font-size: 0.95rem;
+  font-weight: bold;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(107, 114, 128, 0.3);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.abandon-btn:hover {
+  background: linear-gradient(145deg, #ef4444 0%, #dc2626 100%);
+  border-color: rgba(239, 68, 68, 0.8);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+}
+
+.abandon-btn:active {
+  transform: translateY(0);
+}
+
 
 /* Outcome Preview */
 .outcome-preview {

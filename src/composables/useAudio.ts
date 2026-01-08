@@ -3,7 +3,9 @@ import { ref } from 'vue';
 // Audio file paths - all audio files go in public/audio/
 const AUDIO_FILES = {
   // Background music
-  bgm: '/audio/bgm.mp3',
+  bgm1: '/audio/bgm1.mp3',
+  bgm2: '/audio/bgm2.mp3',
+  bgm3: '/audio/bgm3.mp3',
 
   // UI sounds
   click: '/audio/click.mp3',
@@ -46,6 +48,8 @@ const sfxVolume = ref(0.7);
 const audioUnlocked = ref(false);
 let bgmAudio: HTMLAudioElement | null = null;
 let currentGameOverSound: HTMLAudioElement | null = null;
+let currentBgmIndex = ref(0);
+const BGM_TRACKS = ['bgm1', 'bgm2', 'bgm3'] as const;
 
 // Load settings from localStorage
 function loadAudioSettings() {
@@ -181,27 +185,50 @@ function playMusic() {
     return;
   }
 
-  bgmAudio = getAudio('bgm');
+  playNextTrack();
+}
+
+function playNextTrack() {
+  // Stop current track if playing
+  if (bgmAudio) {
+    bgmAudio.pause();
+    bgmAudio.removeEventListener('ended', onTrackEnded);
+    bgmAudio = null;
+  }
+
+  // Get next track
+  const trackName = BGM_TRACKS[currentBgmIndex.value] as SoundName;
+  bgmAudio = getAudio(trackName);
   if (!bgmAudio) return;
 
-  bgmAudio.loop = true;
+  bgmAudio.loop = false; // Don't loop individual tracks
   bgmAudio.volume = musicVolume.value;
-  // Ensure seamless looping
   bgmAudio.preload = 'auto';
-  bgmAudio.addEventListener('ended', () => {
-    bgmAudio!.currentTime = 0;
-    bgmAudio!.play().catch(() => {});
-  });
+  
+  // When track ends, play next one
+  bgmAudio.addEventListener('ended', onTrackEnded);
+  
   bgmAudio.play().catch(() => {
     // Autoplay blocked - will start on first user interaction
   });
+
+  console.log(`Now playing: ${trackName}`);
+}
+
+function onTrackEnded() {
+  // Move to next track
+  currentBgmIndex.value = (currentBgmIndex.value + 1) % BGM_TRACKS.length;
+  playNextTrack();
 }
 
 function stopMusic() {
   if (bgmAudio) {
     bgmAudio.pause();
     bgmAudio.currentTime = 0;
+    bgmAudio.removeEventListener('ended', onTrackEnded);
+    bgmAudio = null;
   }
+  currentBgmIndex.value = 0;
 }
 
 function pauseMusic() {

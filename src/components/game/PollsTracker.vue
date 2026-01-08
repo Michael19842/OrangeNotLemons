@@ -51,6 +51,34 @@
             <div class="stat-desc">{{ getChaosDescription() }}</div>
           </div>
         </div>
+
+        <div class="poll-stat-card">
+          <div class="stat-icon">🍀</div>
+          <div class="stat-info">
+            <div class="stat-label">Luck Factor</div>
+            <div class="stat-bar-container">
+              <div class="stat-bar-fill luck" :style="{ width: `${gameStore.stats.luck}%` }"></div>
+              <div class="stat-bar-value">
+                {{ gameStore.stats.luck }}%
+              </div>
+            </div>
+            <div class="stat-desc">Affects slot outcomes</div>
+          </div>
+        </div>
+
+        <div class="poll-stat-card">
+          <div class="stat-icon">🪙</div>
+          <div class="stat-info">
+            <div class="stat-label">OrangeCoin Value</div>
+            <div class="stat-bar-container">
+              <div class="stat-bar-fill coin" :style="{ width: `${(gameStore.stats.coinValuation - 50) * 2}%` }"></div>
+              <div class="stat-bar-value" :class="getCoinClass()">
+                {{ gameStore.stats.coinValuation }}%
+              </div>
+            </div>
+            <div class="stat-desc">Market valuation (50-150%)</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -267,6 +295,14 @@ function getChaosDescription(): string {
   if (chaos >= 50) return 'Lowers loyalty threshold';
   if (chaos >= 30) return 'Moderate instability';
   return 'Stable but harder to win';
+}
+
+function getCoinClass(): string {
+  const coin = gameStore.stats.coinValuation;
+  if (coin >= 115) return 'excellent';
+  if (coin >= 85) return 'good';
+  if (coin >= 70) return 'warning';
+  return 'danger';
 }
 
 function getForecastClass(): string {
@@ -549,6 +585,14 @@ watch(
 
 .stat-bar-fill.chaos {
   background: linear-gradient(90deg, #4ade80, #fbbf24, #ef4444);
+}
+
+.stat-bar-fill.luck {
+  background: linear-gradient(90deg, #f97316, #eab308, #10b981);
+}
+
+.stat-bar-fill.coin {
+  background: linear-gradient(90deg, #ef4444, #fbbf24, #10b981);
 }
 
 .stat-bar-value {
