@@ -1004,30 +1004,79 @@ export const useGameStore = defineStore('game', () => {
     const message = juiceMessages.value.find(m => m.id === messageId);
     if (!message || message.hasBeenModerated) return;
     
-    // Add mocking comments
+    // Track for achievement
+    achievementTracking.value.criticalPostsIgnored++;
+    
+    // Salty mock comments
     const mockComments = [
-      '😂 The Orange can\'t handle the truth!',
-      '🤡 Imagine being this thin-skinned',
-      '📉 His support is tanking!',
-      '🍋 The Lemon Files are coming out soon...',
-      '💀 This is embarrassing for him'
+      '😂 LMAOOO he can\'t handle the truth!',
+      '🤡 Thin-skinned much? Pathetic.',
+      '📉 Watching this trainwreck in real time',
+      '🍋 Leak the files already! #LemonFiles',
+      '💀 This is literally embarrassing',
+      '🔥 The cope is STRONG with this one',
+      '🎪 What a complete clown show',
+      '👎 Worst leader ever, no cap',
+      '🚨 Impeach this fraud NOW',
+      '💩 Everything he touches turns to garbage',
+      '🤦 How did we let this happen?',
+      '⚰️ Career suicide in real time',
+      '🗑️ Belongs in the trash',
+      '🤮 Makes me sick watching this',
+      '🌋 This is a DISASTER',
+      '😬 Cringe level: MAXIMUM',
+      '🎭 The lies are unbelievable',
+      '💸 Corruption at its finest',
+      '🐍 Snake oil salesman vibes',
+      '🔊 THE TRUTH HURTS DOESN\'T IT?',
+      '📰 History will NOT be kind',
+      '⚡ Watching the meltdown live',
+      '🎯 Called it. Total fraud.',
+      '🌊 Blue wave incoming!',
+      '👊 Time to fight back!',
+      '🗳️ VOTE HIM OUT',
+      '📣 Share this everywhere!',
+      '💪 We won\'t be silenced!',
+      '🔔 Wake up people!',
+      '🧠 Zero brain cells detected'
     ];
     
-    message.mockComments = mockComments.slice(0, 3);
+    // Add 3-5 random comments with delays
+    const commentCount = 3 + Math.floor(Math.random() * 3); // 3-5 comments
+    message.mockComments = [];
     
-    // Apply penalties for not moderating
-    stats.value.loyalty = Math.max(0, stats.value.loyalty - 5);
-    stats.value.support = Math.max(0, stats.value.support - 5);
-    stats.value.health = Math.max(0, stats.value.health - 3);
+    for (let i = 0; i < commentCount; i++) {
+      const delay = 500 + Math.random() * 1000; // 0.5-1.5 seconds
+      
+      setTimeout(() => {
+        if (message.hasBeenModerated) return; // Stop if moderated in the meantime
+        
+        const availableComments = mockComments.filter(c => !message.mockComments?.includes(c));
+        if (availableComments.length > 0) {
+          const randomComment = availableComments[Math.floor(Math.random() * availableComments.length)];
+          if (!message.mockComments) message.mockComments = [];
+          message.mockComments.push(randomComment);
+        }
+      }, delay * (i + 1)); // Stagger the delays
+    }
     
-    showStatChange('👥', -5);
-    showStatChange('📊', -5);
-    showStatChange('❤️', -3);
-    
-    addJuiceMessage({
-      text: '😬 People are mocking The Orange in the comments. Damage control needed!',
-      type: 'news'
-    });
+    // Apply penalties for not moderating (after first comment appears)
+    setTimeout(() => {
+      if (message.hasBeenModerated) return;
+      
+      stats.value.loyalty = Math.max(0, stats.value.loyalty - 5);
+      stats.value.support = Math.max(0, stats.value.support - 5);
+      stats.value.health = Math.max(0, stats.value.health - 3);
+      
+      showStatChange('👥', -5);
+      showStatChange('📊', -5);
+      showStatChange('❤️', -3);
+      
+      addJuiceMessage({
+        text: '💬 Critical post is getting mocked heavily in the comments... This looks bad. #PR_Disaster',
+        type: 'news'
+      });
+    }, 1000); // After 1 second
   }
 
   function generateTurnJuice() {
