@@ -1,0 +1,7 @@
+{
+  "name": "OrangeNotLemons-temp",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "vue-vite"
+}

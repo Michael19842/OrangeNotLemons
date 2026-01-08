@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Orange Not Lemons</string>
+    <string name="title_activity_main">Orange Not Lemons</string>
+    <string name="package_name">com.satiregames.orangenotlemons</string>
+    <string name="custom_url_scheme">com.satiregames.orangenotlemons</string>
+</resources>
