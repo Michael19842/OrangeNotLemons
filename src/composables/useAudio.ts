@@ -25,6 +25,7 @@ const AUDIO_FILES = {
   // Game events
   research: '/audio/research.mp3',
   notification: '/audio/notification.mp3',
+  achievement: '/audio/win.mp3', // Use win sound for achievements
 
   // Game over sounds
   victory: '/audio/win.mp3',

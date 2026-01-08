@@ -60,6 +60,15 @@
 
         <!-- Game Over Modal -->
         <GameOverModal />
+        
+        <!-- Achievements Modal -->
+        <AchievementsModal v-if="showAchievementsModal" @close="showAchievementsModal = false" />
+        
+        <!-- Achievement Toast -->
+        <AchievementToast 
+          :achievement="currentAchievementToast" 
+          @dismiss="dismissToast"
+        />
       </div>
 
       <!-- Fixed Action Buttons -->
@@ -76,6 +85,10 @@
             📢 Rant
             <span v-if="hasFreeBots" class="rant-badge">FREE</span>
             <span v-else-if="shouldPromptRant" class="rant-badge urgent">!</span>
+          </button>
+          <button class="action-btn achievements-btn" @click="showAchievementsModal = true">
+            🏆
+            <span v-if="newAchievementsCount > 0" class="achievement-count">{{ newAchievementsCount }}</span>
           </button>
           <button class="action-btn skip-btn" @click="skipTurn" :disabled="selectedPlan !== null">
             ⏭️ Skip
@@ -268,6 +281,30 @@ const rantText = ref('');
 const botCount = ref(0);
 const activeTab = ref<'juice' | 'cliff' | 'polls'>('juice');
 const lastFreeBotTurn = ref(0);
+const showAchievementsModal = ref(false);
+const currentAchievementToast = ref<any>(null);
+
+const newAchievementsCount = computed(() => {
+  return gameStore.newlyUnlockedAchievements.length;
+});
+
+// Watch for new achievements
+watch(() => gameStore.newlyUnlockedAchievements.length, (newCount, oldCount) => {
+  if (newCount > oldCount && newCount > 0) {
+    // Show toast for newest achievement
+    currentAchievementToast.value = gameStore.newlyUnlockedAchievements[newCount - 1];
+    playSound('achievement');
+    
+    // Auto dismiss after 5 seconds
+    setTimeout(() => {
+      currentAchievementToast.value = null;
+    }, 5000);
+  }
+});
+
+function dismissToast() {
+  currentAchievementToast.value = null;
+}
 
 const hasFreeBots = computed(() => {
   // Free bots every 5 turns
@@ -660,6 +697,34 @@ onUnmounted(() => {
 
 .skip-btn:hover {
   background: rgba(239, 68, 68, 0.3);
+}
+
+.achievements-btn {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+  position: relative;
+  width: 60px;
+  flex: 0;
+}
+
+.achievements-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 30px rgba(245, 158, 11, 0.6);
+}
+
+.achievement-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #ef4444;
+  color: white;
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  animation: pulse-badge-urgent 1.5s ease-in-out infinite;
 }
 
 .slot-phase {

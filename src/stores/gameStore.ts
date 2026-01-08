@@ -12,6 +12,7 @@ import type {
 import { INITIAL_STATS, HEALTH_TIERS, SLOT_SYMBOLS } from '@/types/game';
 import { getRandomPlans, ALL_PLANS } from '@/data/plans';
 import { generateJuiceMessage } from '@/data/juice';
+import { ACHIEVEMENTS, type Achievement } from '@/types/achievements';
 
 export const useGameStore = defineStore('game', () => {
   // Core state
@@ -45,6 +46,25 @@ export const useGameStore = defineStore('game', () => {
 
   // Financial history for Cliff Street charts
   const financialHistory = ref<FinancialSnapshot[]>([]);
+  
+  // Achievements
+  const achievements = ref<Achievement[]>(ACHIEVEMENTS.map(a => ({ ...a })));
+  const newlyUnlockedAchievements = ref<Achievement[]>([]);
+  
+  // Tracking stats for complex achievements
+  const achievementTracking = ref({
+    rantsPosted: 0,
+    postsDeleted: 0,
+    usersBanned: 0,
+    criticalPostsIgnored: 0,
+    blindPlaysWon: 0,
+    jackpotsHit: 0,
+    turnsSkipped: 0,
+    plansFullyInvestigated: 0,
+    lowChaosStreak: 0,
+    zeroLuckStreak: 0,
+    viralRants: 0
+  });
 
   // Stat change notifications
   interface StatChangeNotification {
@@ -105,6 +125,23 @@ export const useGameStore = defineStore('game', () => {
     currentSlotTotal.value = 0;
     slotResults.value = [];
     currentScore.value = 0;
+    
+    // Reset achievements
+    achievements.value = ACHIEVEMENTS.map(a => ({ ...a, unlocked: false }));
+    newlyUnlockedAchievements.value = [];
+    achievementTracking.value = {
+      rantsPosted: 0,
+      postsDeleted: 0,
+      usersBanned: 0,
+      criticalPostsIgnored: 0,
+      blindPlaysWon: 0,
+      jackpotsHit: 0,
+      turnsSkipped: 0,
+      plansFullyInvestigated: 0,
+      lowChaosStreak: 0,
+      zeroLuckStreak: 0,
+      viralRants: 0
+    };
 
     // Generate historical data showing healthy growth before player took over
     generatePreGameHistory();
@@ -586,6 +623,7 @@ export const useGameStore = defineStore('game', () => {
 
     // Next turn
     currentTurn.value++;
+    checkAchievements();
     startTurn();
   }
 
@@ -643,6 +681,7 @@ export const useGameStore = defineStore('game', () => {
 
     // Next turn
     currentTurn.value++;
+    checkAchievements();
     startTurn();
   }
 
@@ -653,6 +692,9 @@ export const useGameStore = defineStore('game', () => {
     
     showStatChange('👥', -4);
     showStatChange('📊', -3);
+    
+    // Track for achievement
+    achievementTracking.value.turnsSkipped++;
 
     addJuiceMessage({
       text: "😴 The Orange did nothing today. Followers are getting restless...",
@@ -660,6 +702,7 @@ export const useGameStore = defineStore('game', () => {
     });
 
     currentTurn.value++;
+    checkAchievements();
     startTurn();
   }
 
@@ -867,6 +910,9 @@ export const useGameStore = defineStore('game', () => {
     stats.value.loyalty = Math.max(0, stats.value.loyalty - 3);
     showStatChange('👥', -3);
     
+    // Track for achievement
+    achievementTracking.value.postsDeleted++;
+    
     // Mark as moderated and remove from feed
     const index = juiceMessages.value.findIndex(m => m.id === messageId);
     if (index !== -1) {
@@ -878,6 +924,7 @@ export const useGameStore = defineStore('game', () => {
       type: 'nonsense'
     });
     
+    checkAchievements();
     return true;
   }
 
@@ -894,6 +941,9 @@ export const useGameStore = defineStore('game', () => {
     showStatChange('👥', -5);
     showStatChange('🌀', 10);
     
+    // Track for achievement
+    achievementTracking.value.usersBanned++;
+    
     // Remove post
     const index = juiceMessages.value.findIndex(m => m.id === messageId);
     if (index !== -1) {
@@ -905,6 +955,7 @@ export const useGameStore = defineStore('game', () => {
       type: 'nonsense'
     });
     
+    checkAchievements();
     return true;
   }
 
@@ -1030,6 +1081,39 @@ export const useGameStore = defineStore('game', () => {
     }, 2000);
   }
 
+  function checkAchievements() {
+    const gameState = {
+      currentTurn: currentTurn.value,
+      term: term.value,
+      stats: stats.value,
+      debt: debt.value,
+      currentScore: currentScore.value,
+      juiceMessages: juiceMessages.value,
+      ...achievementTracking.value
+    };
+
+    achievements.value.forEach(achievement => {
+      if (!achievement.unlocked && achievement.condition(gameState)) {
+        achievement.unlocked = true;
+        achievement.unlockedAt = currentTurn.value;
+        newlyUnlockedAchievements.value.push({ ...achievement });
+        
+        // Show notification
+        addJuiceMessage({
+          text: `🏆 Achievement Unlocked: ${achievement.emoji} ${achievement.name}! ${achievement.description}`,
+          type: 'news'
+        });
+      }
+    });
+  }
+  
+  function dismissAchievement(achievementId: string) {
+    const index = newlyUnlockedAchievements.value.findIndex(a => a.id === achievementId);
+    if (index !== -1) {
+      newlyUnlockedAchievements.value.splice(index, 1);
+    }
+  }
+
   return {
     // State
     currentTurn,
@@ -1052,6 +1136,9 @@ export const useGameStore = defineStore('game', () => {
     slotResults,
     highScore,
     currentScore,
+    achievements,
+    newlyUnlockedAchievements,
+    achievementTracking,
     // Computed
     healthTier,
     maxCards,
@@ -1074,6 +1161,8 @@ export const useGameStore = defineStore('game', () => {
     deletePost,
     banUser,
     showStatChange,
+    checkAchievements,
+    dismissAchievement,
     getShareText,
     getAdjustedCost,
     getSecondTermLoyaltyThreshold,
