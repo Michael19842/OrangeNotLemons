@@ -102,15 +102,26 @@ const messages = computed(() => {
 
 // Track new messages
 watch(() => gameStore.juiceMessages.length, (newLength, oldLength) => {
-  if (newLength > oldLength && !isAtTop.value) {
-    unreadCount.value++;
-  }
-  
-  // Auto-scroll to top if at top
-  if (isAtTop.value) {
-    nextTick(() => scrollToTop());
+  if (newLength > oldLength) {
+    // Always scroll to top for new messages
+    nextTick(() => {
+      scrollToTop();
+      // Mark newest message as seen
+      if (messages.value.length > 0) {
+        lastSeenMessageId.value = messages.value[0].id;
+      }
+    });
   }
 }, { immediate: false });
+
+// Also watch the actual messages array for changes
+watch(() => gameStore.juiceMessages[0]?.id, (newId, oldId) => {
+  if (newId && newId !== oldId) {
+    nextTick(() => {
+      scrollToTop();
+    });
+  }
+});
 
 function handleScroll() {
   if (!feedRef.value) return;
@@ -128,21 +139,32 @@ function scrollToTop() {
   if (feedRef.value) {
     feedRef.value.scrollTo({ top: 0, behavior: 'smooth' });
     unreadCount.value = 0;
+    // Update last seen
+    if (messages.value.length > 0) {
+      setTimeout(() => {
+        lastSeenMessageId.value = messages.value[0].id;
+      }, 600); // After scroll animation
+    }
   }
 }
 
 function isNewPost(message: any): boolean {
-  if (!lastSeenMessageId.value) return false;
-  const messageIndex = messages.value.findIndex(m => m.id === message.id);
-  const lastSeenIndex = messages.value.findIndex(m => m.id === lastSeenMessageId.value);
-  return messageIndex < lastSeenIndex;
+  // Mark posts as new if they were added in the last 3 seconds
+  const now = Date.now();
+  const messageTime = parseInt(message.id.split('-')[1]) || 0;
+  return now - messageTime < 3000;
 }
 
 onMounted(() => {
   if (messages.value.length > 0) {
     lastSeenMessageId.value = messages.value[0].id;
   }
-  scrollToTop();
+  // Initial scroll
+  nextTick(() => {
+    if (feedRef.value) {
+      feedRef.value.scrollTop = 0;
+    }
+  });
   
   // Check for unmoderated critical posts every turn
   checkCriticalPosts();
@@ -442,15 +464,26 @@ function getComments(message: { id: string; turn: number; type: string }): Comme
 }
 
 .juice-post.post-new {
-  background: rgba(255, 107, 53, 0.1);
+  background: rgba(255, 107, 53, 0.2);
   border-left: 3px solid #ff6b35;
-  animation: highlight-new 3s ease-out forwards;
+  animation: highlight-new 3s ease-out forwards, slide-in 0.5s ease-out;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes highlight-new {
   0% {
-    background: rgba(255, 107, 53, 0.3);
-    box-shadow: 0 0 20px rgba(255, 107, 53, 0.4);
+    background: rgba(255, 107, 53, 0.4);
+    box-shadow: 0 0 20px rgba(255, 107, 53, 0.6);
   }
   100% {
     background: rgba(255, 107, 53, 0.05);
