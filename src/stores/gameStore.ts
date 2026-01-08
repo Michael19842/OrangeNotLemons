@@ -144,6 +144,11 @@ export const useGameStore = defineStore('game', () => {
     return Math.floor((currentTurn.value - 1) / 12) + 1;
   });
 
+  // Helper: Clamp stats to valid ranges
+  function clampStat(value: number, min: number = 0, max: number = 100): number {
+    return Math.max(min, Math.min(max, value));
+  }
+
   // Actions
   function initGame() {
     currentTurn.value = 1;
@@ -273,19 +278,30 @@ export const useGameStore = defineStore('game', () => {
     
     // Loyalty recovery mechanic
     applyLoyaltyRecovery();
+    
+    // Give free bot every 5 turns
+    if (currentTurn.value % 5 === 0) {
+      stats.value.freeBots = (stats.value.freeBots || 0) + 1;
+      addJuiceMessage({
+        text: '🤖 Free rant bot received! Use it wisely (or not). #DailyGift',
+        type: 'news'
+      });
+    }
 
-    // Apply interest on debt (affected by chaos and coinValuation)
-    if (debt.value > 0) {
+    // Apply interest on debt (negative money = debt)
+    if (stats.value.money < 0) {
       // Higher chaos increases effective interest rate
       // Lower coinValuation also increases effective interest rate
       const chaosInterestBonus = (stats.value.chaos / 100) * 0.05; // Up to +5% at max chaos
       const valuationInterestBonus = ((100 - stats.value.coinValuation) / 100) * 0.03; // Up to +3% at low valuation
-      const effectiveRate = interestRate.value + chaosInterestBonus + valuationInterestBonus;
+      const effectiveRate = (interestRate.value / 100) + chaosInterestBonus + valuationInterestBonus;
 
-      const interest = Math.floor(debt.value * effectiveRate);
-      debt.value += interest;
+      const debtAmount = Math.abs(stats.value.money);
+      const interest = Math.floor(debtAmount * effectiveRate);
+      stats.value.money -= interest; // Increases debt (more negative)
+      
       addJuiceMessage({
-        text: `💸 Interest payment: ${interest}B coins. Total debt: ${debt.value}B. Rate: ${(effectiveRate * 100).toFixed(1)}%`,
+        text: `💸 Interest payment: ${interest}B. Total debt: ${Math.abs(stats.value.money)}B. Rate: ${(effectiveRate * 100).toFixed(1)}%`,
         type: 'news'
       });
     }
@@ -666,11 +682,7 @@ export const useGameStore = defineStore('game', () => {
     startTurn();
   }
 
-  function executeBlindPlay() {
-    if (!selectedPlan.value) return;
-
-    const plan = selectedPlan.value;
-
+  function calculateBlindScore(): number {
     // Calculate blind score based on stats + randomness - laziness penalty
     const chaosBonus = Math.floor(stats.value.chaos * 0.3); // 0-30 points from chaos
     const supportBonus = Math.floor(stats.value.support * 0.2); // 0-20 points from support
@@ -678,7 +690,15 @@ export const useGameStore = defineStore('game', () => {
     const randomFactor = Math.floor(Math.random() * 31) - 15; // -15 to +15 random
     const lazinessPenalty = -5;
 
-    const blindScore = Math.max(0, chaosBonus + supportBonus + loyaltyBonus + randomFactor + lazinessPenalty);
+    return Math.max(0, Math.min(100, chaosBonus + supportBonus + loyaltyBonus + randomFactor + lazinessPenalty));
+  }
+
+  function executeBlindPlay() {
+    if (!selectedPlan.value) return;
+
+    const plan = selectedPlan.value;
+
+    const blindScore = calculateBlindScore();
 
     // Set the score directly
     currentSlotTotal.value = blindScore;
@@ -725,12 +745,12 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function skipTurn() {
-    // Skipping costs stats (balanced penalties)
-    stats.value.loyalty = Math.max(0, stats.value.loyalty - 4);
-    stats.value.support = Math.max(0, stats.value.support - 3);
+    // Skipping costs stats (reduced penalties for balance)
+    stats.value.loyalty = Math.max(0, stats.value.loyalty - 2);
+    stats.value.support = Math.max(0, stats.value.support - 2);
     
-    showStatChange('👥', -4);
-    showStatChange('📊', -3);
+    showStatChange('👥', -2);
+    showStatChange('📊', -2);
     
     // Track for achievement
     achievementTracking.value.turnsSkipped++;
@@ -942,19 +962,26 @@ export const useGameStore = defineStore('game', () => {
 
   function deletePost(messageId: string) {
     const DELETE_COST = 50;
-    const hadMoney = stats.value.money >= DELETE_COST;
+    const hadMoney = stats.value.money >= 0; // If not already in debt
     
     // Deduct cost (can go negative = debt)
     stats.value.money -= DELETE_COST;
     showStatChange('💰', -DELETE_COST);
     
-    // If went into debt, increase interest
-    if (stats.value.money < 0 && hadMoney) {
-      interestRate.value = Math.min(25, interestRate.value + 2);
-      addJuiceMessage({
-        text: `💸 Went into debt to delete post! Interest rate increased to ${interestRate.value}%! #Borrowing #Debt`,
-        type: 'news'
-      });
+    // If now in debt OR already in debt (borrowing more), increase interest
+    if (stats.value.money < 0) {
+      interestRate.value = Math.min(0.25, interestRate.value + 0.02); // +2% (0.02 as decimal)
+      if (hadMoney) {
+        addJuiceMessage({
+          text: `💸 Went into debt to delete post! Interest rate increased to ${(interestRate.value * 100).toFixed(1)}%! #Borrowing #Debt`,
+          type: 'news'
+        });
+      } else {
+        addJuiceMessage({
+          text: `💸 Borrowed more to delete post! Interest rate now ${(interestRate.value * 100).toFixed(1)}%! #DebtSpiral`,
+          type: 'news'
+        });
+      }
     }
     
     // Small loyalty hit for censorship
@@ -982,19 +1009,26 @@ export const useGameStore = defineStore('game', () => {
 
   function banUser(messageId: string) {
     const BAN_COST = 200;
-    const hadMoney = stats.value.money >= BAN_COST;
+    const hadMoney = stats.value.money >= 0; // If not already in debt
     
     // Deduct cost (can go negative = debt)
     stats.value.money -= BAN_COST;
     showStatChange('💰', -BAN_COST);
     
-    // If went into debt, increase interest
-    if (stats.value.money < 0 && hadMoney) {
-      interestRate.value = Math.min(25, interestRate.value + 2);
-      addJuiceMessage({
-        text: `💸 Borrowed money to ban user! Interest rate now ${interestRate.value}%! #DeepDebt #Desperate`,
-        type: 'news'
-      });
+    // If now in debt OR already in debt (borrowing more), increase interest
+    if (stats.value.money < 0) {
+      interestRate.value = Math.min(0.25, interestRate.value + 0.02); // +2% (0.02 as decimal)
+      if (hadMoney) {
+        addJuiceMessage({
+          text: `💸 Borrowed money to ban user! Interest rate now ${(interestRate.value * 100).toFixed(1)}%! #DeepDebt #Desperate`,
+          type: 'news'
+        });
+      } else {
+        addJuiceMessage({
+          text: `💸 Borrowed even MORE to ban! Interest rate ${(interestRate.value * 100).toFixed(1)}%! #DebtMounting`,
+          type: 'news'
+        });
+      }
     }
     
     // Bigger loyalty hit + chaos increase
@@ -1176,6 +1210,31 @@ export const useGameStore = defineStore('game', () => {
     return change;
   }
 
+  function rant(botCount: number) {
+    // Simple rant function for tests
+    // Calculate success probability
+    const baseProbability = 50;
+    const loyaltyBonus = Math.floor(stats.value.loyalty * 0.3);
+    const supportBonus = Math.floor(stats.value.support * 0.2);
+    const successProbability = Math.min(95, Math.max(5, baseProbability + loyaltyBonus + supportBonus));
+    
+    // Generate generic rant text
+    const rantTexts = [
+      "FAKE NEWS! They're all lying about me! #TruthMatters",
+      "Nobody does it better than me! NOBODY! #Winner",
+      "The haters are just jealous of my success! SAD!",
+      "Making Fruit Great Again, one decision at a time! 🍊",
+      "My opponents are weak! I am STRONG! #Leadership"
+    ];
+    const text = rantTexts[Math.floor(Math.random() * rantTexts.length)];
+    
+    // Track achievement
+    achievementTracking.value.rantsPerformed++;
+    
+    // Use existing addPlayerRant
+    return addPlayerRant(text, successProbability, botCount);
+  }
+
   function showStatChange(icon: string, value: number) {
     const notification: StatChangeNotification = {
       id: `${Date.now()}-${Math.random()}`,
@@ -1267,9 +1326,11 @@ export const useGameStore = defineStore('game', () => {
     spinSlot,
     executePlan,
     executeBlindPlay,
+    calculateBlindScore,
     skipTurn,
     addJuiceMessage,
     addPlayerRant,
+    rant,
     deletePost,
     banUser,
     showStatChange,

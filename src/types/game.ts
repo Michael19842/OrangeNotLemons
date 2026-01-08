@@ -8,6 +8,7 @@ export interface GameStats {
   luck: number;          // 0-100, affects slot machine
   chaos: number;         // 0-100, enables second term at lower loyalty but causes problems
   coinValuation: number; // 50-150, affects costs and interest (100 = normal)
+  freeBots: number;      // Free rant bots, given periodically
 }
 
 // Historical data point for charts
@@ -147,10 +148,11 @@ export const SLOT_SYMBOLS: SlotSymbol[] = [
 // Initial stats
 export const INITIAL_STATS: GameStats = {
   health: 70,         // Old orange, not at full health
-  money: 600,         // Starting funds: 600 billion (reduced from 1000)
-  loyalty: 55,        // Moderate starting loyalty (increased from 50)
+  money: 1500,        // Starting funds: 1500 billion (increased for balance)
+  loyalty: 65,        // Higher starting loyalty (increased from 55)
   support: 40,        // Low public support
   luck: 50,           // Average luck
   chaos: 20,          // Low starting chaos
   coinValuation: 100, // Normal coin valuation (100%)
+  freeBots: 1,        // Start with 1 free bot
 };
