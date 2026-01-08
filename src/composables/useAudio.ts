@@ -41,11 +41,37 @@ const audioCache = new Map<string, HTMLAudioElement>();
 
 // Global state
 const isMuted = ref(false);
-const musicVolume = ref(0.15);
-const sfxVolume = ref(0.5);
+const musicVolume = ref(0.5);
+const sfxVolume = ref(0.7);
 const audioUnlocked = ref(false);
 let bgmAudio: HTMLAudioElement | null = null;
 let currentGameOverSound: HTMLAudioElement | null = null;
+
+// Load settings from localStorage
+function loadAudioSettings() {
+  const saved = localStorage.getItem('gameSettings');
+  if (saved) {
+    const settings = JSON.parse(saved);
+    musicVolume.value = settings.bgmVolume ?? 0.5;
+    sfxVolume.value = settings.sfxVolume ?? 0.7;
+  }
+}
+
+// Initialize settings
+loadAudioSettings();
+
+// Listen for settings changes
+if (typeof window !== 'undefined') {
+  window.addEventListener('settingsChanged', (e: any) => {
+    musicVolume.value = e.detail.bgmVolume ?? 0.5;
+    sfxVolume.value = e.detail.sfxVolume ?? 0.7;
+    
+    // Update BGM volume immediately
+    if (bgmAudio) {
+      bgmAudio.volume = musicVolume.value;
+    }
+  });
+}
 
 // Unlock audio context on first user interaction (required for mobile)
 function unlockAudio() {

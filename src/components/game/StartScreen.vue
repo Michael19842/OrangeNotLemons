@@ -24,6 +24,10 @@
     <button class="achievements-menu-btn" @click="showAchievements = true">
       🏆 Achievements
     </button>
+    
+    <button class="settings-menu-btn" @click="showSettings = true">
+      ⚙️ Settings
+    </button>
 
     <p class="disclaimer">
       This is a work of satire. Any resemblance to actual fruits,
@@ -32,6 +36,9 @@
     
     <!-- Achievements Modal -->
     <AchievementsModal v-if="showAchievements" @close="showAchievements = false" />
+    
+    <!-- Settings Modal -->
+    <SettingsModal v-if="showSettings" @close="showSettings = false" />
   </div>
 </template>
 
@@ -39,10 +46,12 @@
 import { computed, ref } from 'vue';
 import { useGameStore } from '@/stores/gameStore';
 import AchievementsModal from '@/components/game/AchievementsModal.vue';
+import SettingsModal from '@/components/game/SettingsModal.vue';
 
 const gameStore = useGameStore();
 const highScore = computed(() => gameStore.highScore);
 const showAchievements = ref(false);
+const showSettings = ref(false);
 
 const emit = defineEmits<{
   start: [];
@@ -196,6 +205,31 @@ function startGame() {
 }
 
 .achievements-menu-btn:active {
+  transform: scale(0.98);
+}
+
+.settings-menu-btn {
+  padding: 16px 50px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 20px;
+  box-shadow: 0 6px 30px rgba(99, 102, 241, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.settings-menu-btn:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 8px 40px rgba(99, 102, 241, 0.6);
+}
+
+.settings-menu-btn:active {
   transform: scale(0.98);
 }
 
