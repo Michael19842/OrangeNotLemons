@@ -41,13 +41,13 @@
             </div>
             <div class="moderation-buttons">
               <button class="mod-btn delete-btn" @click="handleDelete(message)">
-                🗑️ Delete (50B)
+                🗑️<br>Delete<br>(50B)
               </button>
               <button class="mod-btn ban-btn" @click="handleBan(message)">
-                🔨 Ban User (200B)
+                🔨<br>Ban<br>(200B)
               </button>
               <button class="mod-btn ignore-btn" @click="handleIgnore(message)">
-                😤 Ignore (-5💪-5📊-3❤️)
+                😤<br>Ignore<br>(-5💪📊❤️)
               </button>
             </div>
           </div>
@@ -553,15 +553,22 @@ function getComments(message: { id: string; turn: number; type: string }): Comme
 
 .mod-btn {
   flex: 1;
-  min-width: 90px;
-  padding: 8px 12px;
-  font-size: 0.75rem;
+  min-width: 85px;
+  padding: 8px 10px;
+  font-size: 0.7rem;
   font-weight: 600;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.2;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
 }
 
 .delete-btn {
