@@ -14,6 +14,45 @@ import { getRandomPlans, ALL_PLANS } from '@/data/plans';
 import { generateJuiceMessage } from '@/data/juice';
 import { ACHIEVEMENTS, type Achievement } from '@/types/achievements';
 
+// Import critical messages
+const CRITICAL_MESSAGES = [
+  "🚨 BREAKING: Leaked documents show @TheOrangeOfficial's tax returns are... interesting. Very interesting. #LemonFiles",
+  "📉 Reports: Multiple advisors quit this week citing 'moral concerns' and 'sanity preservation' #ExodusWatch",
+  "🔍 Investigation reveals @TheOrangeOfficial's degree is from 'Totally Legit University Online' #FakeCredentials",
+  "💰 Sources: @TheOrangeOfficial owes $500B to foreign entities. 'Business as usual' says spokesperson #FollowTheMoney",
+  "🤥 Fact-check: @TheOrangeOfficial made 247 false claims this week. That's a new record! #PathologicalLiar",
+  "😬 Former aide: 'He can't read. We use picture books.' White House: 'FAKE NEWS!' #TellAll",
+  "🍋 Whistleblower: 'The Lemon Files are real. I have copies.' #ThisIsHuge #Scandal",
+  "📱 @TheOrangeOfficial accidentally tweets nuclear codes. Again. #NationalSecurity #Oops",
+  "🤡 Polls show 73% of fruits think @TheOrangeOfficial is 'embarrassing' and 'unqualified' #Approval",
+  "📰 NYT: 'The Orange is losing his mind' - 12 current aides confirm #Anonymous #Chaos",
+  "💸 Forensic accountant: 'This isn't creative accounting, this is fraud' #FollowTheMoney",
+  "🎪 World leaders caught laughing at @TheOrangeOfficial during summit #NoRespect #Humiliating",
+  "⚖️ Breaking: Grand jury indictments imminent. @TheOrangeOfficial lawyers lawyering up lawyers #LegalTrouble",
+  "🔥 Leaked audio: @TheOrangeOfficial admits 'I have no idea what I'm doing' #TruthSlips",
+  "📉 Stock market tanks after @TheOrangeOfficial tweet storm. Again. #EconomicAnxiety",
+  "🌍 Foreign press: 'America elected... THAT?!' #WorldwideDisbelief",
+  "🤦 Staff physically removes Sharpie from @TheOrangeOfficial's hand during weather briefing #StableGenius",
+  "💀 Medical experts: '@TheOrangeOfficial shows clear signs of cognitive decline' #Concerning",
+  "🗳️ Election officials: 'He definitely lost. By a lot. Stop asking.' #DenialAintJustaRiver",
+  "🎤 Hot mic catches @TheOrangeOfficial: 'These idiots believe everything I say' #Leaked",
+  "📊 Insider trading investigation focuses on @TheOrangeOfficial's suspiciously timed tweets #SEC",
+  "🔐 Former general: '@TheOrangeOfficial gave classified intel to enemies for laughs' #Treason?",
+  "💩 Aide reveals: 'We have a team that just follows him cleaning up disasters' #DamageControl",
+  "🎭 Psychologist: '@TheOrangeOfficial exhibits textbook narcissistic personality disorder' #Diagnosis",
+  "📱 Twitter removes @TheOrangeOfficial post for 'inciting violence'. Again. #PlatformViolations",
+  "🏦 Bank leaks: @TheOrangeOfficial's accounts show 'extremely suspicious activity' #MoneyLaundering",
+  "🤬 Veteran aide quits: 'I can't work for this man anymore. My conscience won't allow it' #Morals",
+  "📰 Bombshell report: @TheOrangeOfficial family profited $2B from presidency #Corruption",
+  "🎪 Late night hosts have field day with latest @TheOrangeOfficial gaffe #CantMakeThisUp",
+  "⚡ Staff caught editing @TheOrangeOfficial's speeches in real-time to 'make sense' #Embarrassing",
+  "🌐 International community: 'We no longer take @TheOrangeOfficial seriously' #Reputation",
+  "💼 Business partners: 'We're distancing ourselves from the Orange brand' #Toxic",
+  "🔊 Leaked call: @TheOrangeOfficial tries to pressure officials to 'find votes' #ElectionFraud",
+  "📉 Loyalty among inner circle at all-time low. 'Everyone's looking for exits' #SinkingShip",
+  "🎯 Critics: '@TheOrangeOfficial is the most corrupt leader in modern history' #Legacy",
+];
+
 export const useGameStore = defineStore('game', () => {
   // Core state
   const currentTurn = ref(1);
@@ -877,8 +916,10 @@ export const useGameStore = defineStore('game', () => {
     
     // 10% chance for critical post (only news/rumor)
     if ((msg.type === 'news' || msg.type === 'rumor') && Math.random() < 0.1) {
+      message.text = CRITICAL_MESSAGES[Math.floor(Math.random() * CRITICAL_MESSAGES.length)];
       message.isCritical = true;
       message.hasBeenModerated = false;
+      message.type = 'news'; // Critical posts are always news
     }
     
     juiceMessages.value.unshift(message);
