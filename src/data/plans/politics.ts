@@ -19,29 +19,55 @@ export const POLITICS_PLANS: PlanCard[] = [
         minScore: 50, maxScore: 100,
         title: 'HUGE Crowd!',
         description: 'Biggest rally ever! (Don\'t check aerial photos)',
-        immediateEffects: { loyalty: 25, support: 10, health: -5, chaos: 8 }, // Increased loyalty from 20, reduced chaos
-        delayedEffects: [{
-          turnsDelay: 9,
-          description: 'Rally promises impossible to keep',
-          effects: { support: -5, chaos: 5 }
-        }]
+        immediateEffects: { loyalty: 25, support: 10, health: -8, chaos: 8, luck: 5 },
+        delayedEffects: [
+          {
+            turnsDelay: 3,
+            description: 'Base energized! Donations pour in',
+            effects: { money: 400, loyalty: 5 }
+          },
+          {
+            turnsDelay: 9,
+            description: 'Rally promises impossible to keep',
+            effects: { support: -5, chaos: 5 }
+          }
+        ]
       },
       {
         minScore: 20, maxScore: 49,
         title: 'Decent Turnout',
         description: 'The crowd was... respectable. Media lies about size.',
-        immediateEffects: { loyalty: 12, support: 5, health: -5, chaos: 3 } // Increased loyalty from 10, reduced chaos
+        immediateEffects: { loyalty: 12, support: 5, health: -5, chaos: 3 },
+        delayedEffects: [
+          {
+            turnsDelay: 5,
+            description: 'Rally footage contradicts attendance claims',
+            effects: { support: -5, chaos: 5 }
+          }
+        ]
       },
       {
         minScore: -100, maxScore: 19,
         title: 'Rally Gone Wrong',
         description: 'Said the quiet part loud. Several times.',
         immediateEffects: { loyalty: 5, support: -15, health: -10, chaos: 20 },
-        delayedEffects: [{
-          turnsDelay: 3,
-          description: 'Rally clips go viral for all the wrong reasons',
-          effects: { support: -10, chaos: 10 }
-        }]
+        delayedEffects: [
+          {
+            turnsDelay: 1,
+            description: 'Fact-checkers work overtime on rally statements',
+            effects: { support: -5, chaos: 5 }
+          },
+          {
+            turnsDelay: 3,
+            description: 'Rally clips go viral for all the wrong reasons',
+            effects: { support: -10, chaos: 10 }
+          },
+          {
+            turnsDelay: 7,
+            description: 'Donors express concerns about message',
+            effects: { loyalty: -5, money: -200 }
+          }
+        ]
       }
     ]
   },
@@ -64,33 +90,64 @@ export const POLITICS_PLANS: PlanCard[] = [
         title: 'Loyalty Secured!',
         description: 'New chief understands the assignment. Investigations paused.',
         immediateEffects: { loyalty: 15, chaos: -5 },
-        delayedEffects: [{
-          turnsDelay: 11,
-          description: 'Old chief writes tell-all book',
-          effects: { loyalty: -10, support: -5, chaos: 15 }
-        }]
+        delayedEffects: [
+          {
+            turnsDelay: 5,
+            description: 'Investigations quietly archived',
+            effects: { loyalty: 5, chaos: -5 }
+          },
+          {
+            turnsDelay: 11,
+            description: 'Old chief writes tell-all book',
+            effects: { loyalty: -10, support: -5, chaos: 15 }
+          },
+          {
+            turnsDelay: 16,
+            description: 'Whistleblowers emerge with evidence',
+            effects: { loyalty: -15, chaos: 20 }
+          }
+        ]
       },
       {
         minScore: 25, maxScore: 59,
         title: 'Partial Compliance',
         description: 'New chief is loyal-ish. Some investigations continue.',
         immediateEffects: { loyalty: 5 },
-        delayedEffects: [{
-          turnsDelay: 8,
-          description: 'New chief leaks concerns to press',
-          effects: { loyalty: -5, chaos: 5 }
-        }]
+        delayedEffects: [
+          {
+            turnsDelay: 4,
+            description: 'Minor investigations proceed slowly',
+            effects: { chaos: 5 }
+          },
+          {
+            turnsDelay: 8,
+            description: 'New chief leaks concerns to press',
+            effects: { loyalty: -5, chaos: 5 }
+          }
+        ]
       },
       {
         minScore: -100, maxScore: 24,
         title: 'Confirmation Disaster',
         description: 'Senate rejects nominee. Old chief stays and is VERY motivated.',
         immediateEffects: { loyalty: -15, support: -10, chaos: 20 },
-        delayedEffects: [{
-          turnsDelay: 4,
-          description: 'Investigation into Mandarin Business intensifies',
-          effects: { loyalty: -20, chaos: 15 }
-        }]
+        delayedEffects: [
+          {
+            turnsDelay: 2,
+            description: 'Old chief doubles down on existing cases',
+            effects: { chaos: 10, loyalty: -5 }
+          },
+          {
+            turnsDelay: 4,
+            description: 'Investigation into Mandarin Business intensifies',
+            effects: { loyalty: -20, chaos: 15 }
+          },
+          {
+            turnsDelay: 8,
+            description: 'Subpoenas issued for financial records',
+            effects: { loyalty: -10, chaos: 20, money: -300 }
+          }
+        ]
       }
     ]
   },

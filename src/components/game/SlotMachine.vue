@@ -1,19 +1,34 @@
 <template>
   <div class="slot-machine">
     <div class="slot-header">
-      <h3>🎰 Fruit Machine</h3>
+      <h3>{{ selectedPlan?.emoji }} {{ selectedPlan?.name || 'Select a Plan' }}</h3>
       <div class="spins-remaining">
         Spins: <span class="spin-count">{{ spinsRemaining }}</span>/3
       </div>
     </div>
 
+    <!-- Outcome Preview -->
+    <div class="outcome-preview" v-if="selectedPlan">
+      <div class="outcomes-row">
+        <div
+          v-for="outcome in selectedPlan.outcomes"
+          :key="outcome.minScore"
+          class="outcome-tier"
+          :class="{ active: totalScore > 0 && isOutcomeActive(outcome) }"
+        >
+          <span class="outcome-range">{{ outcome.minScore }}-{{ outcome.maxScore }}</span>
+          <span class="outcome-title">{{ outcome.title }}</span>
+          <span class="outcome-effects">
+            <span class="effect-line" v-for="(value, key) in outcome.immediateEffects" :key="key">
+              {{ getStatIcon(key) }}<span v-if="value !== undefined" class="effect-value" :class="value > 0 ? 'positive' : 'negative'">{{ value > 0 ? '+' : '' }}{{ value }}</span>
+            </span>
+          </span>
+        </div>
+      </div>
+    </div>
+
     <!-- Slot Machine Frame -->
     <div class="machine-frame">
-      <!-- Top Half Emoji -->
-      <div class="frame-top">
-        <div class="half-emoji top">🎲</div>
-      </div>
-
       <!-- Reels Container -->
       <div class="reels-container">
         <div
@@ -55,11 +70,6 @@
           <div class="ready-text">Ready to Spin!</div>
         </div>
       </div>
-
-      <!-- Bottom Half Emoji -->
-      <div class="frame-bottom">
-        <div class="half-emoji bottom">🎲</div>
-      </div>
     </div>
 
     <!-- Controls -->
@@ -74,42 +84,23 @@
       </button>
 
       <button
+        v-if="spinsRemaining === 3"
+        class="blind-btn"
+        :disabled="isSpinning"
+        @click="executeBlind"
+        title="Skip slots and play blind - based on your stats"
+      >
+        <span class="blind-text">{{ blindButtonText }}</span>
+        <span class="blind-penalty">(😴 Laziness -5)</span>
+      </button>
+
+      <button
         v-if="spinsRemaining === 0 || (spinsRemaining < 3 && !isSpinning)"
         class="execute-btn"
         @click="execute"
       >
         ✓ Execute Plan
       </button>
-    </div>
-
-    <!-- Outcome Preview -->
-    <div class="outcome-preview" v-if="selectedPlan && totalScore > 0">
-      <h4>📊 Score Impact Analysis</h4>
-      <div class="score-explanation">
-        <div class="explanation-title">Your score: <strong>{{ totalScore }}</strong> points</div>
-        <div class="explanation-subtitle">
-          {{ getScoreRating() }}
-        </div>
-      </div>
-      <div
-        v-for="outcome in selectedPlan.outcomes"
-        :key="outcome.minScore"
-        class="outcome-tier"
-        :class="{ active: isOutcomeActive(outcome) }"
-      >
-        <div class="outcome-header">
-          <span class="outcome-range">{{ outcome.minScore }} to {{ outcome.maxScore }}</span>
-          <span class="outcome-title">{{ outcome.title }}</span>
-        </div>
-        <div v-if="isOutcomeActive(outcome)" class="outcome-effects">
-          <div class="effect-line" v-for="(value, key) in outcome.immediateEffects" :key="key">
-            <span class="effect-icon">{{ getStatIcon(key) }}</span>
-            <span v-if="value !== undefined" class="effect-value" :class="value > 0 ? 'positive' : 'negative'">
-              {{ value > 0 ? '+' : '' }}{{ value }}
-            </span>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -133,6 +124,26 @@ const displayReels = ref<SlotSymbol[]>([
 ]);
 const lastResult = ref<SlotResult | null>(null);
 const spinAnimation = ref([0, 0, 0]);
+
+const BLIND_TEXTS = [
+  '🎲 YOLO!',
+  '⚡ BELIEVE ME!',
+  '🚀 HUGE!',
+  '💪 THE BEST!',
+  '🔥 BIGLY!',
+  '⭐ TREMENDOUS!',
+  '🎯 TRUST ME BRO!',
+  '💎 SO GOOD!',
+  '🦅 MANY SAY!',
+  '👑 PERFECT!',
+  '🍊 SO GREAT!',
+  '💰 YUGE WIN!',
+  '🏆 WINNING!',
+  '🎪 BELIEVE IT!',
+  '⚡ UNSTOPPABLE!'
+];
+
+const blindButtonText = ref(BLIND_TEXTS[Math.floor(Math.random() * BLIND_TEXTS.length)]);
 
 const spinsRemaining = computed(() => gameStore.slotSpinsRemaining);
 const totalScore = computed(() => gameStore.currentSlotTotal);
@@ -229,6 +240,13 @@ async function spin() {
   isSpinning.value = false;
 }
 
+function executeBlind() {
+  if (isSpinning.value) return;
+  
+  playSound('click');
+  gameStore.executeBlindPlay();
+}
+
 function execute() {
   playSound('click');
   gameStore.executePlan();
@@ -242,6 +260,8 @@ function delay(ms: number): Promise<void> {
 watch(() => gameStore.selectedPlan, () => {
   displayReels.value = [SLOT_SYMBOLS[0], SLOT_SYMBOLS[0], SLOT_SYMBOLS[0]];
   lastResult.value = null;
+  // Randomize blind button text
+  blindButtonText.value = BLIND_TEXTS[Math.floor(Math.random() * BLIND_TEXTS.length)];
 });
 </script>
 
@@ -269,7 +289,7 @@ watch(() => gameStore.selectedPlan, () => {
 .slot-header h3 {
   margin: 0;
   color: #ff6b35;
-  font-size: 1rem;
+  font-size: 1.2rem;
   text-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
 }
 
@@ -284,7 +304,7 @@ watch(() => gameStore.selectedPlan, () => {
   font-size: 1.1rem;
 }
 
-/* Machine Frame */
+/* Outcome Preview */
 .machine-frame {
   background: linear-gradient(180deg, #2a2a3e 0%, #1a1a2e 50%, #2a2a3e 100%);
   border-radius: 20px;
@@ -296,47 +316,6 @@ watch(() => gameStore.selectedPlan, () => {
   margin-bottom: 12px;
   position: relative;
   flex-shrink: 0;
-}
-
-/* Frame Decorations */
-.frame-top, .frame-bottom {
-  display: flex;
-  justify-content: center;
-  overflow: hidden;
-  height: 25px;
-  position: relative;
-}
-
-.half-emoji {
-  font-size: 3.5rem;
-  line-height: 1;
-  opacity: 0.4;
-  filter: blur(0.5px);
-  text-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
-}
-
-.half-emoji.top {
-  position: relative;
-  top: 15px;
-  animation: emoji-glow 3s ease-in-out infinite;
-}
-
-.half-emoji.bottom {
-  position: relative;
-  top: -35px;
-  animation: emoji-glow 3s ease-in-out infinite;
-  animation-delay: 1.5s;
-}
-
-@keyframes emoji-glow {
-  0%, 100% { 
-    opacity: 0.4;
-    text-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
-  }
-  50% { 
-    opacity: 0.6;
-    text-shadow: 0 0 30px rgba(255, 107, 53, 0.5);
-  }
 }
 
 /* Reels Container */
@@ -432,13 +411,14 @@ watch(() => gameStore.selectedPlan, () => {
   background: linear-gradient(145deg, #0a0a15 0%, #1a1a2e 100%);
   border-radius: 12px;
   padding: 12px;
-  min-height: 100px;
+  height: 120px;
   border: 2px solid rgba(255, 107, 53, 0.3);
   box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.8);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 .spin-result {
@@ -464,13 +444,14 @@ watch(() => gameStore.selectedPlan, () => {
 .jackpot-text {
   display: block;
   color: #ffd700;
-  font-size: 1.2rem;
+  font-size: 1rem;
   font-weight: bold;
   text-shadow: 
     0 0 10px #ffd700,
     0 0 20px #ffd700;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   animation: jackpot-pulse 1s ease-in-out infinite;
+  line-height: 1;
 }
 
 @keyframes jackpot-pulse {
@@ -486,9 +467,10 @@ watch(() => gameStore.selectedPlan, () => {
 }
 
 .result-score {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: bold;
   font-family: 'Courier New', monospace;
+  line-height: 1;
 }
 
 .spin-result.positive .result-score {
@@ -523,12 +505,12 @@ watch(() => gameStore.selectedPlan, () => {
 }
 
 .total-value {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: bold;
   font-family: 'Courier New', monospace;
   text-shadow: 0 0 20px currentColor;
   line-height: 1;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .total-value.excellent {
@@ -556,23 +538,26 @@ watch(() => gameStore.selectedPlan, () => {
 .total-breakdown {
   display: flex;
   justify-content: center;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: wrap;
-  margin-top: 12px;
-  padding-top: 12px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px solid rgba(255, 107, 53, 0.2);
+  max-height: 40px;
+  overflow: hidden;
 }
 
 .breakdown-item {
   background: rgba(0, 0, 0, 0.4);
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 0.9rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
   border: 1px solid rgba(255, 107, 53, 0.4);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .breakdown-item:hover {
@@ -607,6 +592,7 @@ watch(() => gameStore.selectedPlan, () => {
   justify-content: center;
   margin-bottom: 12px;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .spin-btn {
@@ -637,6 +623,79 @@ watch(() => gameStore.selectedPlan, () => {
   cursor: not-allowed;
 }
 
+.blind-btn {
+  background: linear-gradient(145deg, #6366f1 0%, #4f46e5 100%);
+  border: 2px solid rgba(99, 102, 241, 0.5);
+  color: white;
+  padding: 10px 20px;
+  font-size: 0.95rem;
+  font-weight: bold;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 
+    0 4px 15px rgba(99, 102, 241, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.blind-text {
+  font-size: 1rem;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.blind-penalty {
+  font-size: 0.65rem;
+  opacity: 0.85;
+  font-weight: 600;
+  color: #fbbf24;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  line-height: 1;
+}
+
+.blind-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: left 0.5s ease;
+}
+
+.blind-btn:hover:not(:disabled)::before {
+  left: 100%;
+}
+
+.blind-btn:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 
+    0 6px 25px rgba(99, 102, 241, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border-color: rgba(99, 102, 241, 0.8);
+}
+
+.blind-btn:active:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 
+    0 3px 15px rgba(99, 102, 241, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.blind-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .execute-btn {
   background: linear-gradient(145deg, #22c55e 0%, #16a34a 100%);
   border: none;
@@ -664,18 +723,16 @@ watch(() => gameStore.selectedPlan, () => {
 .outcome-preview {
   background: rgba(0, 0, 0, 0.3);
   border-radius: 12px;
-  padding: 12px;
+  padding: 10px;
   border: 1px solid rgba(255, 107, 53, 0.3);
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
+  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
-.outcome-preview h4 {
-  margin: 0 0 12px 0;
-  color: #ff6b35;
-  font-size: 1rem;
-  text-align: center;
+.outcomes-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .score-explanation {
@@ -706,13 +763,16 @@ watch(() => gameStore.selectedPlan, () => {
 }
 
 .outcome-tier {
-  padding: 10px;
-  margin-bottom: 8px;
+  padding: 6px 10px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  opacity: 0.4;
+  opacity: 0.6;
   transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
 }
 
 .outcome-tier.active {
@@ -721,6 +781,7 @@ watch(() => gameStore.selectedPlan, () => {
   border: 2px solid #ff6b35;
   box-shadow: 0 0 15px rgba(255, 107, 53, 0.3);
   animation: outcome-highlight 1s ease-in-out infinite alternate;
+  padding: 5px 9px;
 }
 
 @keyframes outcome-highlight {
@@ -728,19 +789,12 @@ watch(() => gameStore.selectedPlan, () => {
   to { box-shadow: 0 0 25px rgba(255, 107, 53, 0.5); }
 }
 
-.outcome-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
 .outcome-range {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #888;
   background: rgba(0, 0, 0, 0.3);
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
   font-weight: bold;
 }
 
@@ -752,38 +806,25 @@ watch(() => gameStore.selectedPlan, () => {
 .outcome-title {
   font-weight: bold;
   color: #e2e8f0;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+  flex-shrink: 0;
 }
 
 .outcome-tier.active .outcome-title {
   color: #ff6b35;
-  font-size: 1rem;
 }
 
 .outcome-effects {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 6px;
+  align-items: center;
 }
 
 .effect-line {
-  background: rgba(0, 0, 0, 0.3);
-  padding: 6px 10px;
-  border-radius: 8px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
-}
-
-.outcome-tier.active .effect-line {
-  background: rgba(255, 107, 53, 0.2);
-  border: 1px solid rgba(255, 107, 53, 0.4);
-}
-
-.effect-icon {
-  font-size: 1rem;
+  gap: 2px;
+  font-size: 0.75rem;
 }
 
 .effect-value {

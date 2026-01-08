@@ -84,8 +84,13 @@ export const ECONOMY_PLANS: PlanCard[] = [
         minScore: 70, maxScore: 100,
         title: 'TO THE MOON!',
         description: 'OrangeCoin hits $1000! Early investors (you) are thrilled!',
-        immediateEffects: { money: 2000, loyalty: 15, luck: 10, coinValuation: 25, chaos: 8 }, // Increased loyalty from 0, reduced chaos
+        immediateEffects: { money: 2000, loyalty: 15, luck: 10, coinValuation: 25, chaos: 8 },
         delayedEffects: [
+          {
+            turnsDelay: 2,
+            description: 'Media hypes OrangeCoin! Retail investors FOMO in',
+            effects: { money: 500, loyalty: 5, coinValuation: 10 }
+          },
           {
             turnsDelay: 5,
             description: 'OrangeCoin volatility spooks regulators',
@@ -95,6 +100,11 @@ export const ECONOMY_PLANS: PlanCard[] = [
             turnsDelay: 8,
             description: 'OrangeCoin crashes 99%. Retail investors are furious.',
             effects: { support: -20, loyalty: -10, coinValuation: -30, chaos: 15 }
+          },
+          {
+            turnsDelay: 12,
+            description: 'Congressional hearings scheduled on crypto fraud',
+            effects: { loyalty: -5, chaos: 10, money: -300 }
           }
         ]
       },
@@ -102,12 +112,22 @@ export const ECONOMY_PLANS: PlanCard[] = [
         minScore: 30, maxScore: 69,
         title: 'Modest Gains',
         description: 'OrangeCoin does okay. Not great, not terrible.',
-        immediateEffects: { money: 300, loyalty: 5, support: 5, coinValuation: 10 }, // Added loyalty
+        immediateEffects: { money: 300, loyalty: 5, support: 5, coinValuation: 10 },
         delayedEffects: [
+          {
+            turnsDelay: 2,
+            description: 'Early adopters sell for profit, others hold bags',
+            effects: { money: 200, coinValuation: -5 }
+          },
           {
             turnsDelay: 4,
             description: 'Crypto winter hits. OrangeCoin holders demand refunds.',
             effects: { support: -10, coinValuation: -15 }
+          },
+          {
+            turnsDelay: 7,
+            description: 'OrangeCoin becomes forgotten meme',
+            effects: { coinValuation: -10, chaos: 5 }
           }
         ]
       },
@@ -118,6 +138,11 @@ export const ECONOMY_PLANS: PlanCard[] = [
         immediateEffects: { money: -200, loyalty: -10, support: -15, coinValuation: -20, chaos: 20 },
         delayedEffects: [
           {
+            turnsDelay: 2,
+            description: 'Twitter hashtag #OrangeScam trends worldwide',
+            effects: { support: -10, chaos: 10 }
+          },
+          {
             turnsDelay: 6,
             description: 'SEC opens investigation',
             effects: { chaos: 15, loyalty: -5 }
@@ -126,6 +151,11 @@ export const ECONOMY_PLANS: PlanCard[] = [
             turnsDelay: 10,
             description: 'Class action lawsuit filed. Legal fees mount.',
             effects: { money: -500, chaos: 10 }
+          },
+          {
+            turnsDelay: 14,
+            description: 'Crypto exchanges delist OrangeCoin',
+            effects: { coinValuation: -20, support: -5 }
           }
         ]
       }
@@ -160,6 +190,11 @@ export const ECONOMY_PLANS: PlanCard[] = [
             turnsDelay: 6,
             description: 'National debt skyrockets. Services cut.',
             effects: { support: -20, health: -5, coinValuation: -5, chaos: 10 }
+          },
+          {
+            turnsDelay: 10,
+            description: 'Wealth gap reaches historic levels. Unrest grows.',
+            effects: { support: -10, chaos: 15, loyalty: -5 }
           }
         ]
       },
@@ -173,6 +208,11 @@ export const ECONOMY_PLANS: PlanCard[] = [
             turnsDelay: 4,
             description: 'Middle class realizes they got nothing',
             effects: { support: -10, chaos: 5 }
+          },
+          {
+            turnsDelay: 8,
+            description: 'Tax bill comes due for average fruits',
+            effects: { support: -5, chaos: 10 }
           }
         ]
       },
@@ -183,6 +223,11 @@ export const ECONOMY_PLANS: PlanCard[] = [
         immediateEffects: { support: -15, loyalty: -5, chaos: 15 },
         delayedEffects: [
           {
+            turnsDelay: 2,
+            description: 'Opposition demands full tax returns',
+            effects: { chaos: 10, support: -5 }
+          },
+          {
             turnsDelay: 3,
             description: 'Media digs into tax history',
             effects: { chaos: 10 }
@@ -191,6 +236,11 @@ export const ECONOMY_PLANS: PlanCard[] = [
             turnsDelay: 7,
             description: 'Tax return investigations intensify',
             effects: { loyalty: -10, chaos: 10 }
+          },
+          {
+            turnsDelay: 11,
+            description: 'IRS audit announced publicly',
+            effects: { loyalty: -10, money: -400, chaos: 15 }
           }
         ]
       }
@@ -217,6 +267,11 @@ export const ECONOMY_PLANS: PlanCard[] = [
         immediateEffects: { money: 1500, loyalty: 5, coinValuation: 15, chaos: 5 },
         delayedEffects: [
           {
+            turnsDelay: 3,
+            description: 'NFT resellers flip for huge profits',
+            effects: { money: 300, loyalty: 3 }
+          },
+          {
             turnsDelay: 6,
             description: 'NFT hype fades, resale market collapses',
             effects: { coinValuation: -10, chaos: 5 }
@@ -233,17 +288,36 @@ export const ECONOMY_PLANS: PlanCard[] = [
         title: 'Modest Sales',
         description: 'Some die-hards bought in. Others confused by "NFT".',
         immediateEffects: { money: 300, coinValuation: 5 },
-        delayedEffects: [{
-          turnsDelay: 3,
-          description: 'NFT buyers realize they can\'t resell',
-          effects: { support: -5, coinValuation: -10 }
-        }]
+        delayedEffects: [
+          {
+            turnsDelay: 3,
+            description: 'NFT buyers realize they can\'t resell',
+            effects: { support: -5, coinValuation: -10 }
+          },
+          {
+            turnsDelay: 7,
+            description: 'OpenSea delists collection for ToS violation',
+            effects: { coinValuation: -10, chaos: 5 }
+          }
+        ]
       },
       {
         minScore: -100, maxScore: 24,
         title: 'Screenshot Disaster',
         description: 'Everyone just right-clicked. Sales near zero.',
-        immediateEffects: { money: -50, support: -5, coinValuation: -10, chaos: 10 }
+        immediateEffects: { money: -50, support: -5, coinValuation: -10, chaos: 10 },
+        delayedEffects: [
+          {
+            turnsDelay: 1,
+            description: 'Becomes internet meme for worst NFT launch',
+            effects: { support: -5, chaos: 10 }
+          },
+          {
+            turnsDelay: 5,
+            description: 'Tech press roasts NFT understanding',
+            effects: { support: -5, chaos: 5 }
+          }
+        ]
       }
     ]
   },

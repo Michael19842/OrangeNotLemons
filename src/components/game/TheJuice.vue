@@ -242,7 +242,7 @@ function getComments(message: { id: string; turn: number; type: string }): Comme
   background: #000;
   border-radius: 16px;
   padding: 0;
-  height: 180px;
+  height: 100%;
   display: flex;
   flex-direction: column;
   border: 1px solid #2f3336;
@@ -311,6 +311,7 @@ function getComments(message: { id: string; turn: number; type: string }): Comme
   overflow-y: auto;
   overflow-x: hidden;
   background: #000;
+  padding-bottom: 160px;
 }
 
 .juice-post {

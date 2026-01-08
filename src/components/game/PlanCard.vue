@@ -293,16 +293,21 @@ function handleRandomResearch() {
   align-items: center;
   gap: 4px;
   min-height: 24px;
+  overflow: hidden;
 }
 
 .hidden-icon {
   opacity: 0.5;
+  flex-shrink: 0;
 }
 
 .hidden-text {
   color: #666;
   flex: 1;
   font-size: 0.6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .select-btn {

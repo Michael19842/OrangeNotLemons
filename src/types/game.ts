@@ -18,6 +18,8 @@ export interface FinancialSnapshot {
   coinValuation: number;
   chaos: number;
   interestRate: number;
+  loyalty: number;
+  support: number;
 }
 
 export interface DelayedEffect {

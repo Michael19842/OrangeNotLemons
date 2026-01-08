@@ -129,7 +129,9 @@ export const useGameStore = defineStore('game', () => {
       debt: debt.value,
       coinValuation: stats.value.coinValuation,
       chaos: stats.value.chaos,
-      interestRate: interestRate.value
+      interestRate: interestRate.value,
+      loyalty: stats.value.loyalty,
+      support: stats.value.support
     });
   }
 
@@ -167,7 +169,9 @@ export const useGameStore = defineStore('game', () => {
         debt: histDebt,
         coinValuation: Math.floor(Math.min(100, histValuation)),
         chaos: Math.floor(Math.max(5, histChaos)),
-        interestRate: histInterest
+        interestRate: histInterest,
+        loyalty: 85 + Math.floor(Math.random() * 5), // High loyalty before
+        support: 75 + Math.floor(Math.random() * 10) // Good support before
       });
     }
     
@@ -178,7 +182,9 @@ export const useGameStore = defineStore('game', () => {
       debt: 0,
       coinValuation: 100, // Peak valuation
       chaos: 15, // Nice and low
-      interestRate: 0.05
+      interestRate: 0.05,
+      loyalty: 90, // Peak loyalty at handover
+      support: 85 // Peak support at handover
     });
   }
 
@@ -583,6 +589,63 @@ export const useGameStore = defineStore('game', () => {
     startTurn();
   }
 
+  function executeBlindPlay() {
+    if (!selectedPlan.value) return;
+
+    const plan = selectedPlan.value;
+
+    // Calculate blind score based on stats + randomness - laziness penalty
+    const chaosBonus = Math.floor(stats.value.chaos * 0.3); // 0-30 points from chaos
+    const supportBonus = Math.floor(stats.value.support * 0.2); // 0-20 points from support
+    const loyaltyBonus = Math.floor(stats.value.loyalty * 0.2); // 0-20 points from loyalty
+    const randomFactor = Math.floor(Math.random() * 31) - 15; // -15 to +15 random
+    const lazinessPenalty = -5;
+
+    const blindScore = Math.max(0, chaosBonus + supportBonus + loyaltyBonus + randomFactor + lazinessPenalty);
+
+    // Set the score directly
+    currentSlotTotal.value = blindScore;
+
+    // Find matching outcome
+    const outcome = plan.outcomes.find(o => blindScore >= o.minScore && blindScore <= o.maxScore)
+      || plan.outcomes[plan.outcomes.length - 1];
+
+    // Apply immediate effects
+    applyEffects(outcome.immediateEffects);
+
+    // Add to score
+    currentScore.value += Math.max(0, blindScore);
+
+    // Queue delayed effects if any
+    if (outcome.delayedEffects && outcome.delayedEffects.length > 0) {
+      outcome.delayedEffects.forEach(delayedEffect => {
+        const effect: DelayedEffect = {
+          id: `${plan.id}-${currentTurn.value}-${delayedEffect.turnsDelay}`,
+          triggerTurn: currentTurn.value + delayedEffect.turnsDelay,
+          planId: plan.id,
+          description: delayedEffect.description,
+          effects: delayedEffect.effects
+        };
+        pendingEffects.value.push(effect);
+      });
+    }
+
+    // Juice messages
+    addJuiceMessage({
+      text: `👁️‍🗨️ The Orange went in BLIND! Score: ${blindScore} (Chaos +${chaosBonus}, Support +${supportBonus}, Loyalty +${loyaltyBonus}, Luck ${randomFactor}, Laziness ${lazinessPenalty})`,
+      type: 'news'
+    });
+
+    addJuiceMessage({
+      text: `📢 ${outcome.title}: ${outcome.description}`,
+      type: 'news'
+    });
+
+    // Next turn
+    currentTurn.value++;
+    startTurn();
+  }
+
   function skipTurn() {
     // Skipping costs stats (balanced penalties)
     stats.value.loyalty = Math.max(0, stats.value.loyalty - 4);
@@ -904,6 +967,7 @@ export const useGameStore = defineStore('game', () => {
     researchPlanRandom,
     spinSlot,
     executePlan,
+    executeBlindPlay,
     skipTurn,
     addJuiceMessage,
     addPlayerRant,

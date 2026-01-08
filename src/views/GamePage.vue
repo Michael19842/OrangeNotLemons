@@ -64,15 +64,17 @@
 
       <!-- Fixed Action Buttons -->
       <div class="action-section-fixed">
-        <button class="action-btn plan-btn" @click="openPlanSelector">
-          🃏 Plan
-        </button>
-        <button class="action-btn rant-btn" @click="openRantModal">
-          📢 Rant
-        </button>
-        <button class="action-btn skip-btn" @click="skipTurn" :disabled="selectedPlan !== null">
-          ⏭️ Skip
-        </button>
+        <div class="action-buttons-wrapper">
+          <button class="action-btn plan-btn" @click="openPlanSelector">
+            🃏 Plan
+          </button>
+          <button class="action-btn rant-btn" @click="openRantModal">
+            📢 Rant
+          </button>
+          <button class="action-btn skip-btn" @click="skipTurn" :disabled="selectedPlan !== null">
+            ⏭️ Skip
+          </button>
+        </div>
       </div>
 
       <!-- Rant Modal -->
@@ -116,7 +118,7 @@
           <div class="bot-section">
             <div class="bot-header">
               <span class="bot-title">🤖 Boost Engagement</span>
-              <span class="bot-cost">50B per 10K bots</span>
+              <span class="bot-cost">25B per 10K bots</span>
             </div>
             
             <div class="bot-controls">
@@ -134,7 +136,6 @@
               <button 
                 class="bot-btn increase" 
                 @click="adjustBots(10)"
-                :disabled="!canAffordBots(10)"
               >
                 +
               </button>
@@ -147,9 +148,13 @@
               </div>
               <div class="info-row">
                 <span>Your Money:</span>
-                <span :class="{ 'insufficient': gameStore.stats.money < botCost }">
+                <span :class="{ 'negative': gameStore.stats.money < 0 }">
                   {{ gameStore.stats.money }}B
                 </span>
+              </div>
+              <div v-if="gameStore.stats.money < botCost" class="info-row warning">
+                <span>📈 Will borrow:</span>
+                <span class="debt-value">{{ botCost - gameStore.stats.money }}B</span>
               </div>
               <div class="info-row boost">
                 <span>Success Boost:</span>
@@ -201,12 +206,6 @@
       <div v-if="selectedPlan" class="bottom-sheet-overlay slot-overlay">
         <div class="bottom-sheet slot-sheet" @click.stop>
           <div class="sheet-handle"></div>
-          <div class="slot-header">
-            <div class="selected-plan-info">
-              <span class="plan-emoji">{{ selectedPlan.emoji }}</span>
-              <span class="plan-name">{{ selectedPlan.name }}</span>
-            </div>
-          </div>
           <div class="slot-container">
             <SlotMachine />
           </div>
@@ -273,19 +272,13 @@ const successProbability = computed(() => {
 });
 
 const botBoost = computed(() => Math.floor(botCount.value * 0.5));
-const botCost = computed(() => Math.floor(botCount.value / 10) * 50); // 50B per 10K bots
+const botCost = computed(() => Math.floor(botCount.value / 10) * 25); // 25B per 10K bots (was 50B)
 
 const canPostRant = computed(() => {
   return rantText.value.trim() && 
-         rantText.value.length <= 280 && 
-         gameStore.stats.money >= botCost.value;
+         rantText.value.length <= 280;
+  // Removed money check - can now go into debt
 });
-
-function canAffordBots(amount: number): boolean {
-  const newTotal = botCount.value + amount;
-  const newCost = Math.floor(newTotal / 10) * 50;
-  return gameStore.stats.money >= newCost;
-}
 
 function adjustBots(amount: number) {
   playSound('click');
@@ -495,28 +488,41 @@ onUnmounted(() => {
 }
 
 .action-spacer {
-  height: calc(100px + env(safe-area-inset-bottom, 0px));
+  height: 100px;
+  flex-shrink: 0;
 }
 
 .action-section-fixed {
   position: fixed;
-  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-  left: 12px;
-  right: 12px;
+  bottom: 0;
+  left: 0;
+  right: 0;
   padding: 12px;
-  background: linear-gradient(145deg, #1a1a2e 0%, #0f0f1a 100%);
-  border: 2px solid rgba(255, 107, 53, 0.3);
-  border-radius: 16px;
-  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 107, 53, 0.2);
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, 
+    transparent 0%, 
+    rgba(26, 26, 46, 0.7) 15%,
+    rgba(26, 26, 46, 0.95) 30%,
+    #1a1a2e 50%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   z-index: 100;
   pointer-events: none;
+}
+
+.action-buttons-wrapper {
   display: flex;
   gap: 8px;
   justify-content: space-between;
+  background: linear-gradient(145deg, #1a1a2e 0%, #0f0f1a 100%);
+  border: 2px solid rgba(255, 107, 53, 0.3);
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 107, 53, 0.2);
+  pointer-events: all;
 }
 
-.action-section-fixed .action-btn {
-  pointer-events: all;
+.action-buttons-wrapper .action-btn {
   flex: 1;
   padding: 14px 8px;
   font-size: 0.9rem;
@@ -740,23 +746,6 @@ onUnmounted(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-}
-
-.slot-header {
-  text-align: center;
-  padding: 16px 0;
-  flex-shrink: 0;
-}
-
-.selected-plan-info {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 12px 20px;
-  background: rgba(255, 107, 53, 0.2);
-  border: 2px solid rgba(255, 107, 53, 0.5);
-  border-radius: 12px;
 }
 
 .slot-container {
@@ -1049,8 +1038,21 @@ onUnmounted(() => {
   color: #fbbf24 !important;
 }
 
-.insufficient {
+.negative {
   color: #ef4444 !important;
+}
+
+.info-row.warning {
+  background: rgba(251, 191, 36, 0.1);
+  padding: 8px 12px !important;
+  border-radius: 6px;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  margin: 4px 0;
+}
+
+.debt-value {
+  color: #eab308 !important;
+  font-weight: 700 !important;
 }
 
 .boost {

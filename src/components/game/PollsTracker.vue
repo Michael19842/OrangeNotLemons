@@ -12,8 +12,11 @@
           <div class="stat-icon">👥</div>
           <div class="stat-info">
             <div class="stat-label">Inner Circle Loyalty</div>
-            <div class="stat-value" :class="getLoyaltyClass()">
-              {{ gameStore.stats.loyalty }}%
+            <div class="stat-bar-container">
+              <div class="stat-bar-fill loyalty" :style="{ width: `${gameStore.stats.loyalty}%` }"></div>
+              <div class="stat-bar-value" :class="getLoyaltyClass()">
+                {{ gameStore.stats.loyalty }}%
+              </div>
             </div>
             <div class="stat-threshold">
               Threshold: {{ loyaltyThreshold }}%
@@ -25,8 +28,11 @@
           <div class="stat-icon">📊</div>
           <div class="stat-info">
             <div class="stat-label">Public Support</div>
-            <div class="stat-value" :class="getSupportClass()">
-              {{ gameStore.stats.support }}%
+            <div class="stat-bar-container">
+              <div class="stat-bar-fill support" :style="{ width: `${gameStore.stats.support}%` }"></div>
+              <div class="stat-bar-value" :class="getSupportClass()">
+                {{ gameStore.stats.support }}%
+              </div>
             </div>
             <div class="stat-desc">Affects plan success</div>
           </div>
@@ -36,10 +42,78 @@
           <div class="stat-icon">🌀</div>
           <div class="stat-info">
             <div class="stat-label">Chaos Level</div>
-            <div class="stat-value" :class="getChaosClass()">
-              {{ gameStore.stats.chaos }}%
+            <div class="stat-bar-container">
+              <div class="stat-bar-fill chaos" :style="{ width: `${gameStore.stats.chaos}%` }"></div>
+              <div class="stat-bar-value" :class="getChaosClass()">
+                {{ gameStore.stats.chaos }}%
+              </div>
             </div>
             <div class="stat-desc">{{ getChaosDescription() }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="history-section">
+      <h3>📊 Historical Trends</h3>
+      <div class="history-charts">
+        <div class="history-chart">
+          <div class="history-header">
+            <span class="history-label">👥 Loyalty</span>
+            <span class="history-current">{{ gameStore.stats.loyalty }}%</span>
+          </div>
+          <div class="history-bars">
+            <div 
+              v-for="(snapshot, index) in recentHistory" 
+              :key="index"
+              class="history-bar-wrapper"
+            >
+              <div 
+                class="history-bar loyalty-bar"
+                :style="{ height: `${snapshot.loyalty}%` }"
+                :class="getHistoryBarClass(snapshot.loyalty)"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-chart">
+          <div class="history-header">
+            <span class="history-label">📊 Support</span>
+            <span class="history-current">{{ gameStore.stats.support }}%</span>
+          </div>
+          <div class="history-bars">
+            <div 
+              v-for="(snapshot, index) in recentHistory" 
+              :key="index"
+              class="history-bar-wrapper"
+            >
+              <div 
+                class="history-bar support-bar"
+                :style="{ height: `${snapshot.support}%` }"
+                :class="getHistoryBarClass(snapshot.support)"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-chart">
+          <div class="history-header">
+            <span class="history-label">🌀 Chaos</span>
+            <span class="history-current">{{ gameStore.stats.chaos }}%</span>
+          </div>
+          <div class="history-bars">
+            <div 
+              v-for="(snapshot, index) in recentHistory" 
+              :key="index"
+              class="history-bar-wrapper"
+            >
+              <div 
+                class="history-bar chaos-bar"
+                :style="{ height: `${snapshot.chaos}%` }"
+                :class="getHistoryBarClass(snapshot.chaos)"
+              ></div>
+            </div>
           </div>
         </div>
       </div>
@@ -81,9 +155,24 @@
       </div>
 
       <div class="projection-chart">
-        <h4>Loyalty Projection</h4>
+        <h4>📈 Loyalty Projection Chart</h4>
+        <p class="projection-subtitle">Based on pending delayed effects</p>
         <div class="chart-container">
           <canvas ref="chartCanvas"></canvas>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item">
+            <span class="legend-dot current"></span>
+            <span>Current Position</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot projected"></span>
+            <span>Projected Path</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-line threshold"></span>
+            <span>{{ loyaltyThreshold }}% Threshold</span>
+          </div>
         </div>
       </div>
     </div>
@@ -111,6 +200,15 @@ const chartCanvas = ref<HTMLCanvasElement | null>(null);
 
 const loyaltyThreshold = computed(() => gameStore.getSecondTermLoyaltyThreshold());
 
+const recentHistory = computed(() => {
+  // Get last 20 snapshots for history charts
+  return gameStore.financialHistory.slice(-20).map(snapshot => ({
+    loyalty: snapshot.loyalty,
+    support: snapshot.support,
+    chaos: snapshot.chaos
+  }));
+});
+
 const sortedEffects = computed(() => {
   return [...gameStore.pendingEffects].sort((a, b) => a.triggerTurn - b.triggerTurn);
 });
@@ -120,6 +218,13 @@ function getTurnsAway(turn: number): string {
   if (diff === 0) return 'This turn!';
   if (diff === 1) return 'Next turn';
   return `In ${diff} turns`;
+}
+
+function getHistoryBarClass(value: number): string {
+  if (value >= 70) return 'excellent';
+  if (value >= 50) return 'good';
+  if (value >= 30) return 'warning';
+  return 'danger';
 }
 
 function getStatIcon(statKey: string): string {
@@ -374,6 +479,7 @@ watch(
 }
 
 .current-polls h3,
+.history-section h3,
 .projections-section h3,
 .reelection-forecast h3 {
   color: #ff6b35;
@@ -409,7 +515,76 @@ watch(
 .stat-label {
   color: #888;
   font-size: 0.85rem;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+}
+
+.stat-bar-container {
+  position: relative;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  transition: width 0.8s ease;
+  opacity: 0.7;
+  transform-origin: left;
+}
+
+.stat-bar-fill.loyalty {
+  background: linear-gradient(90deg, #f59e0b, #3b82f6, #4ade80);
+}
+
+.stat-bar-fill.support {
+  background: linear-gradient(90deg, #8b5cf6, #06b6d4, #4ade80);
+}
+
+.stat-bar-fill.chaos {
+  background: linear-gradient(90deg, #4ade80, #fbbf24, #ef4444);
+}
+
+.stat-bar-value {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 1.4rem;
+  font-weight: 700;
+  text-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.8),
+    0 0 10px rgba(0, 0, 0, 0.5);
+  z-index: 1;
+}
+
+.stat-bar-value.excellent {
+  color: #4ade80;
+}
+
+.stat-bar-value.good {
+  color: #3b82f6;
+}
+
+.stat-bar-value.warning {
+  color: #fbbf24;
+}
+
+.stat-bar-value.danger {
+  color: #ef4444;
+  animation: pulse-value 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-value {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 
 .stat-value {
@@ -438,6 +613,102 @@ watch(
 .stat-desc {
   color: #666;
   font-size: 0.75rem;
+}
+
+/* History Section */
+.history-section {
+  margin-top: 20px;
+}
+
+.history-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.history-chart {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.history-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ccc;
+}
+
+.history-current {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #ff6b35;
+}
+
+.history-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 120px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+}
+
+.history-bar-wrapper {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  min-width: 8px;
+}
+
+.history-bar {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.5s ease;
+  position: relative;
+}
+
+.history-bar.loyalty-bar {
+  background: linear-gradient(to top, #3b82f6, #4ade80);
+}
+
+.history-bar.support-bar {
+  background: linear-gradient(to top, #8b5cf6, #06b6d4);
+}
+
+.history-bar.chaos-bar {
+  background: linear-gradient(to top, #4ade80, #fbbf24, #ef4444);
+}
+
+.history-bar.excellent {
+  opacity: 1;
+}
+
+.history-bar.good {
+  opacity: 0.9;
+}
+
+.history-bar.warning {
+  opacity: 0.8;
+}
+
+.history-bar.danger {
+  opacity: 0.7;
+  animation: pulse-bar 2s ease-in-out infinite;
+}
+
+@keyframes pulse-bar {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 0.5; }
 }
 
 .projection-info {
@@ -530,24 +801,78 @@ watch(
 
 .projection-chart {
   margin-top: 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid rgba(255, 107, 53, 0.2);
 }
 
 .projection-chart h4 {
-  color: #ccc;
-  font-size: 0.95rem;
+  color: #ff6b35;
+  font-size: 1rem;
+  margin: 0 0 4px 0;
+  font-weight: 700;
+}
+
+.projection-subtitle {
+  color: #888;
+  font-size: 0.8rem;
   margin: 0 0 12px 0;
+  font-style: italic;
 }
 
 .chart-container {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.4);
   border-radius: 8px;
   padding: 16px;
-  height: 200px;
+  height: 220px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .chart-container canvas {
   width: 100%;
   height: 100%;
+}
+
+.chart-legend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.legend-dot.current {
+  background: #3b82f6;
+}
+
+.legend-dot.projected {
+  background: #4ade80;
+}
+
+.legend-line {
+  width: 20px;
+  height: 2px;
+  display: inline-block;
+}
+
+.legend-line.threshold {
+  background: #ff6b35;
+  border-top: 2px dashed #ff6b35;
 }
 
 .forecast-card {
