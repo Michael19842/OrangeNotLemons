@@ -209,8 +209,8 @@ function startGame() {
 }
 
 .settings-menu-btn {
-  padding: 16px 50px;
-  font-size: 1.1rem;
+  padding: 14px 45px;
+  font-size: 1rem;
   font-weight: 700;
   border: none;
   border-radius: 16px;
@@ -218,7 +218,7 @@ function startGame() {
   color: white;
   cursor: pointer;
   transition: all 0.3s ease;
-  margin-bottom: 20px;
+  margin-bottom: 30px;
   box-shadow: 0 6px 30px rgba(99, 102, 241, 0.4);
   text-transform: uppercase;
   letter-spacing: 2px;
