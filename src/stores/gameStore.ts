@@ -942,10 +942,20 @@ export const useGameStore = defineStore('game', () => {
 
   function deletePost(messageId: string) {
     const DELETE_COST = 50;
-    if (stats.value.money < DELETE_COST) return false;
+    const hadMoney = stats.value.money >= DELETE_COST;
     
+    // Deduct cost (can go negative = debt)
     stats.value.money -= DELETE_COST;
     showStatChange('💰', -DELETE_COST);
+    
+    // If went into debt, increase interest
+    if (stats.value.money < 0 && hadMoney) {
+      interestRate.value = Math.min(25, interestRate.value + 2);
+      addJuiceMessage({
+        text: `💸 Went into debt to delete post! Interest rate increased to ${interestRate.value}%! #Borrowing #Debt`,
+        type: 'news'
+      });
+    }
     
     // Small loyalty hit for censorship
     stats.value.loyalty = Math.max(0, stats.value.loyalty - 3);
@@ -957,6 +967,7 @@ export const useGameStore = defineStore('game', () => {
     // Mark as moderated and remove from feed
     const index = juiceMessages.value.findIndex(m => m.id === messageId);
     if (index !== -1) {
+      juiceMessages.value[index].hasBeenModerated = true;
       juiceMessages.value.splice(index, 1);
     }
     
@@ -971,10 +982,20 @@ export const useGameStore = defineStore('game', () => {
 
   function banUser(messageId: string) {
     const BAN_COST = 200;
-    if (stats.value.money < BAN_COST) return false;
+    const hadMoney = stats.value.money >= BAN_COST;
     
+    // Deduct cost (can go negative = debt)
     stats.value.money -= BAN_COST;
     showStatChange('💰', -BAN_COST);
+    
+    // If went into debt, increase interest
+    if (stats.value.money < 0 && hadMoney) {
+      interestRate.value = Math.min(25, interestRate.value + 2);
+      addJuiceMessage({
+        text: `💸 Borrowed money to ban user! Interest rate now ${interestRate.value}%! #DeepDebt #Desperate`,
+        type: 'news'
+      });
+    }
     
     // Bigger loyalty hit + chaos increase
     stats.value.loyalty = Math.max(0, stats.value.loyalty - 5);
@@ -985,9 +1006,10 @@ export const useGameStore = defineStore('game', () => {
     // Track for achievement
     achievementTracking.value.usersBanned++;
     
-    // Remove post
+    // Mark as moderated and remove post
     const index = juiceMessages.value.findIndex(m => m.id === messageId);
     if (index !== -1) {
+      juiceMessages.value[index].hasBeenModerated = true;
       juiceMessages.value.splice(index, 1);
     }
     

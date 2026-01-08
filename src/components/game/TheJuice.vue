@@ -181,17 +181,11 @@ function checkCriticalPosts() {
 }
 
 function handleDelete(message: any) {
-  const success = gameStore.deletePost(message.id);
-  if (!success) {
-    alert('Not enough money! Need 50B');
-  }
+  gameStore.deletePost(message.id);
 }
 
 function handleBan(message: any) {
-  const success = gameStore.banUser(message.id);
-  if (!success) {
-    alert('Not enough money! Need 200B');
-  }
+  gameStore.banUser(message.id);
 }
 
 function handleIgnore(message: any) {
