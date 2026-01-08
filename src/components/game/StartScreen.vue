@@ -20,20 +20,29 @@
     <button class="start-btn" @click="startGame">
       🍊 Start Game
     </button>
+    
+    <button class="achievements-menu-btn" @click="showAchievements = true">
+      🏆 Achievements
+    </button>
 
     <p class="disclaimer">
       This is a work of satire. Any resemblance to actual fruits,
       living or deceased, is purely coincidental. 🍋
     </p>
+    
+    <!-- Achievements Modal -->
+    <AchievementsModal v-if="showAchievements" @close="showAchievements = false" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useGameStore } from '@/stores/gameStore';
+import AchievementsModal from '@/components/game/AchievementsModal.vue';
 
 const gameStore = useGameStore();
 const highScore = computed(() => gameStore.highScore);
+const showAchievements = ref(false);
 
 const emit = defineEmits<{
   start: [];
@@ -162,6 +171,31 @@ function startGame() {
 }
 
 .start-btn:active {
+  transform: scale(0.98);
+}
+
+.achievements-menu-btn {
+  padding: 16px 50px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 20px;
+  box-shadow: 0 6px 30px rgba(245, 158, 11, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.achievements-menu-btn:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 8px 40px rgba(245, 158, 11, 0.6);
+}
+
+.achievements-menu-btn:active {
   transform: scale(0.98);
 }
 
