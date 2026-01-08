@@ -698,7 +698,13 @@ export const useGameStore = defineStore('game', () => {
 
     const plan = selectedPlan.value;
 
-    const blindScore = calculateBlindScore();
+    // Calculate blind score with breakdown for display
+    const chaosBonus = Math.floor(stats.value.chaos * 0.3); // 0-30 points from chaos
+    const supportBonus = Math.floor(stats.value.support * 0.2); // 0-20 points from support
+    const loyaltyBonus = Math.floor(stats.value.loyalty * 0.2); // 0-20 points from loyalty
+    const randomFactor = Math.floor(Math.random() * 31) - 15; // -15 to +15 random
+    const lazinessPenalty = -5;
+    const blindScore = Math.max(0, Math.min(100, chaosBonus + supportBonus + loyaltyBonus + randomFactor + lazinessPenalty));
 
     // Set the score directly
     currentSlotTotal.value = blindScore;
@@ -1229,7 +1235,7 @@ export const useGameStore = defineStore('game', () => {
     const text = rantTexts[Math.floor(Math.random() * rantTexts.length)];
     
     // Track achievement
-    achievementTracking.value.rantsPerformed++;
+    achievementTracking.value.rantsPosted++;
     
     // Use existing addPlayerRant
     return addPlayerRant(text, successProbability, botCount);
