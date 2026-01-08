@@ -64,8 +64,11 @@ export interface JuiceMessage {
   id: string;
   text: string;
   type: 'news' | 'rumor' | 'hint' | 'nonsense' | 'player';
-  relatedPlanId?: string;    // If this is a hint about a specific plan
+  relatedPlanId?: string;
   turn: number;
+  isCritical?: boolean;
+  hasBeenModerated?: boolean;
+  mockComments?: string[];
 }
 
 export interface SlotSymbol {

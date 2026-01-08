@@ -68,8 +68,14 @@
           <button class="action-btn plan-btn" @click="openPlanSelector">
             🃏 Plan
           </button>
-          <button class="action-btn rant-btn" @click="openRantModal">
+          <button 
+            class="action-btn rant-btn" 
+            @click="openRantModal"
+            :class="{ 'rant-urgent': shouldPromptRant, 'rant-free': hasFreeBots }"
+          >
             📢 Rant
+            <span v-if="hasFreeBots" class="rant-badge">FREE</span>
+            <span v-else-if="shouldPromptRant" class="rant-badge urgent">!</span>
           </button>
           <button class="action-btn skip-btn" @click="skipTurn" :disabled="selectedPlan !== null">
             ⏭️ Skip
@@ -100,6 +106,11 @@
                 {{ successProbability }}%
               </span>
             </div>
+            <div class="prob-reward">
+              <span class="reward-label">Potential Rewards:</span>
+              <span class="reward-item">+5 Loyalty</span>
+              <span class="reward-item">+3 Luck</span>
+            </div>
             <div class="prob-bar">
               <div 
                 class="prob-fill" 
@@ -118,7 +129,8 @@
           <div class="bot-section">
             <div class="bot-header">
               <span class="bot-title">🤖 Boost Engagement</span>
-              <span class="bot-cost">25B per 10K bots</span>
+              <span class="bot-cost" v-if="!hasFreeBots">25B per 10K bots</span>
+              <span class="bot-cost free" v-else>FREE TODAY!</span>
             </div>
             
             <div class="bot-controls">
@@ -255,6 +267,17 @@ const showRantModal = ref(false);
 const rantText = ref('');
 const botCount = ref(0);
 const activeTab = ref<'juice' | 'cliff' | 'polls'>('juice');
+const lastFreeBotTurn = ref(0);
+
+const hasFreeBots = computed(() => {
+  // Free bots every 5 turns
+  return gameStore.currentTurn - lastFreeBotTurn.value >= 5;
+});
+
+const shouldPromptRant = computed(() => {
+  // Prompt rant if stats are low
+  return gameStore.stats.support < 40 || gameStore.stats.loyalty < 50;
+});
 
 function setActiveTab(tab: 'juice' | 'cliff' | 'polls') {
   playSound('click');
@@ -272,7 +295,10 @@ const successProbability = computed(() => {
 });
 
 const botBoost = computed(() => Math.floor(botCount.value * 0.5));
-const botCost = computed(() => Math.floor(botCount.value / 10) * 25); // 25B per 10K bots (was 50B)
+const botCost = computed(() => {
+  if (hasFreeBots.value) return 0;
+  return Math.floor(botCount.value / 10) * 25;
+});
 
 const canPostRant = computed(() => {
   return rantText.value.trim() && 
@@ -333,14 +359,32 @@ function postRant() {
 
   playSound('notification');
   
-  // Deduct bot cost
+  // Deduct bot cost (might be free!)
   if (botCost.value > 0) {
     gameStore.stats.money -= botCost.value;
     gameStore.showStatChange('💰', -botCost.value);
+  } else if (hasFreeBots.value) {
+    lastFreeBotTurn.value = gameStore.currentTurn;
   }
   
   // Add rant to juice feed with bot boost
   const supportChange = gameStore.addPlayerRant(rantText.value, successProbability.value, botCount.value);
+  
+  // Reward successful rants
+  if (supportChange > 0) {
+    gameStore.stats.loyalty = Math.min(100, gameStore.stats.loyalty + 5);
+    gameStore.stats.luck = Math.min(100, gameStore.stats.luck + 3);
+    gameStore.showStatChange('👥', 5);
+    gameStore.showStatChange('🍀', 3);
+    
+    // Show success message
+    setTimeout(() => {
+      gameStore.addJuiceMessage({
+        text: `🔥 Your rant is TRENDING! +${supportChange} support, +5 loyalty, +3 luck!`,
+        type: 'news'
+      });
+    }, 1000);
+  }
   
   // Play sound based on reaction
   setTimeout(() => {
@@ -557,6 +601,55 @@ onUnmounted(() => {
 .plan-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 30px rgba(255, 107, 53, 0.6);
+}
+
+.rant-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+  position: relative;
+}
+
+.rant-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 30px rgba(59, 130, 246, 0.6);
+}
+
+.rant-btn.rant-urgent {
+  animation: pulse-urgent 2s ease-in-out infinite;
+}
+
+.rant-btn.rant-free {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4);
+}
+
+@keyframes pulse-urgent {
+  0%, 100% { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 4px 30px rgba(239, 68, 68, 0.8); }
+}
+
+.rant-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #22c55e;
+  color: white;
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.rant-badge.urgent {
+  background: #ef4444;
+  animation: pulse-badge-urgent 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-badge-urgent {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
 }
 
 .skip-btn {
@@ -858,6 +951,32 @@ onUnmounted(() => {
   margin-bottom: 8px;
 }
 
+.prob-reward {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: rgba(34, 197, 94, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.reward-label {
+  font-size: 0.85rem;
+  color: #888;
+  font-weight: 600;
+}
+
+.reward-item {
+  font-size: 0.8rem;
+  color: #22c55e;
+  font-weight: 600;
+  background: rgba(34, 197, 94, 0.2);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
 .prob-label {
   color: #888;
   font-size: 0.9rem;
@@ -955,6 +1074,17 @@ onUnmounted(() => {
 .bot-cost {
   font-size: 0.85rem;
   color: #888;
+}
+
+.bot-cost.free {
+  color: #22c55e;
+  font-weight: 700;
+  animation: pulse-free 2s ease-in-out infinite;
+}
+
+@keyframes pulse-free {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 .bot-controls {

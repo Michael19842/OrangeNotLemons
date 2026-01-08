@@ -826,16 +826,116 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function addJuiceMessage(msg: Omit<JuiceMessage, 'id' | 'turn'>) {
-    juiceMessages.value.unshift({
+    const message: JuiceMessage = {
       ...msg,
       id: `juice-${Date.now()}-${Math.random()}`,
       turn: currentTurn.value
-    });
+    };
+    
+    // 10% chance for critical post (only news/rumor)
+    if ((msg.type === 'news' || msg.type === 'rumor') && Math.random() < 0.1) {
+      message.isCritical = true;
+      message.hasBeenModerated = false;
+    }
+    
+    juiceMessages.value.unshift(message);
 
     // Keep only last 50 messages
     if (juiceMessages.value.length > 50) {
       juiceMessages.value = juiceMessages.value.slice(0, 50);
     }
+    
+    // Schedule mock comments for critical posts after 8 turns if not moderated
+    if (message.isCritical) {
+      setTimeout(() => {
+        const msg = juiceMessages.value.find(m => m.id === message.id);
+        if (msg && !msg.hasBeenModerated) {
+          addMockCommentsToPost(message.id);
+        }
+      }, 100); // Check immediately in next tick
+    }
+  }
+
+  function deletePost(messageId: string) {
+    const DELETE_COST = 50;
+    if (stats.value.money < DELETE_COST) return false;
+    
+    stats.value.money -= DELETE_COST;
+    showStatChange('💰', -DELETE_COST);
+    
+    // Small loyalty hit for censorship
+    stats.value.loyalty = Math.max(0, stats.value.loyalty - 3);
+    showStatChange('👥', -3);
+    
+    // Mark as moderated and remove from feed
+    const index = juiceMessages.value.findIndex(m => m.id === messageId);
+    if (index !== -1) {
+      juiceMessages.value.splice(index, 1);
+    }
+    
+    addJuiceMessage({
+      text: '🚫 [This post has been deleted by The Orange]',
+      type: 'nonsense'
+    });
+    
+    return true;
+  }
+
+  function banUser(messageId: string) {
+    const BAN_COST = 200;
+    if (stats.value.money < BAN_COST) return false;
+    
+    stats.value.money -= BAN_COST;
+    showStatChange('💰', -BAN_COST);
+    
+    // Bigger loyalty hit + chaos increase
+    stats.value.loyalty = Math.max(0, stats.value.loyalty - 5);
+    stats.value.chaos = Math.min(100, stats.value.chaos + 10);
+    showStatChange('👥', -5);
+    showStatChange('🌀', 10);
+    
+    // Remove post
+    const index = juiceMessages.value.findIndex(m => m.id === messageId);
+    if (index !== -1) {
+      juiceMessages.value.splice(index, 1);
+    }
+    
+    addJuiceMessage({
+      text: '🔨 [User has been permanently banned by The Orange]',
+      type: 'nonsense'
+    });
+    
+    return true;
+  }
+
+  function addMockCommentsToPost(messageId: string) {
+    const message = juiceMessages.value.find(m => m.id === messageId);
+    if (!message || message.hasBeenModerated) return;
+    
+    // Add mocking comments
+    const mockComments = [
+      '😂 The Orange can\'t handle the truth!',
+      '🤡 Imagine being this thin-skinned',
+      '📉 His support is tanking!',
+      '🍋 The Lemon Files are coming out soon...',
+      '💀 This is embarrassing for him'
+    ];
+    
+    message.mockComments = mockComments.slice(0, 3);
+    
+    // Apply penalties for not moderating
+    stats.value.loyalty = Math.max(0, stats.value.loyalty - 5);
+    stats.value.support = Math.max(0, stats.value.support - 5);
+    stats.value.health = Math.max(0, stats.value.health - 3);
+    
+    showStatChange('👥', -5);
+    showStatChange('📊', -5);
+    showStatChange('❤️', -3);
+    
+    addJuiceMessage({
+      text: '😬 People are mocking The Orange in the comments. Damage control needed!',
+      type: 'news'
+    });
   }
 
   function generateTurnJuice() {
@@ -971,6 +1071,8 @@ export const useGameStore = defineStore('game', () => {
     skipTurn,
     addJuiceMessage,
     addPlayerRant,
+    deletePost,
+    banUser,
     showStatChange,
     getShareText,
     getAdjustedCost,

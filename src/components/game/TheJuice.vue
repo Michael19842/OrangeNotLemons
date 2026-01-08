@@ -8,14 +8,19 @@
           <span class="juice-handle">@TheRealJuice</span>
         </div>
       </div>
+      <!-- New posts notification -->
+      <div v-if="unreadCount > 0" class="new-posts-badge" @click="scrollToTop">
+        <span class="badge-icon">↑</span>
+        <span class="badge-text">{{ unreadCount }} new</span>
+      </div>
     </div>
     
-    <div class="juice-feed" ref="feedRef">
+    <div class="juice-feed" ref="feedRef" @scroll="handleScroll">
       <transition-group name="juice-message" tag="div">
         <div
           v-for="message in messages"
           :key="message.id"
-          :class="['juice-post', `post-${message.type}`]"
+          :class="['juice-post', `post-${message.type}`, { 'post-new': isNewPost(message) }]"
         >
           <div class="post-header">
             <div class="post-avatar">
@@ -28,6 +33,33 @@
             </div>
           </div>
           <div class="post-content" v-html="formatMessage(message.text)"></div>
+          
+          <!-- Critical post moderation options -->
+          <div v-if="message.isCritical && !message.hasBeenModerated" class="moderation-actions">
+            <div class="critical-warning">
+              ⚠️ Critical post! Respond or face consequences in {{ 8 - (gameStore.currentTurn - message.turn) }} turns
+            </div>
+            <div class="moderation-buttons">
+              <button class="mod-btn delete-btn" @click="handleDelete(message)">
+                🗑️ Delete (50B)
+              </button>
+              <button class="mod-btn ban-btn" @click="handleBan(message)">
+                🔨 Ban User (200B)
+              </button>
+              <button class="mod-btn ignore-btn" @click="handleIgnore(message)">
+                😤 Ignore (-5💪-5📊-3❤️)
+              </button>
+            </div>
+          </div>
+          
+          <!-- Mock comments if not moderated in time -->
+          <div v-if="message.mockComments && message.mockComments.length > 0" class="mock-comments">
+            <div class="comments-header">💬 Comments:</div>
+            <div v-for="(comment, idx) in message.mockComments" :key="idx" class="mock-comment">
+              {{ comment }}
+            </div>
+          </div>
+          
           <div class="post-stats">
             <span class="stat-item">💬 {{ getCommentCount(message) }}</span>
             <span class="stat-item">🔁 {{ getRetweetCount(message) }}</span>
@@ -54,16 +86,100 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useGameStore } from '@/stores/gameStore';
 
 const gameStore = useGameStore();
 const feedRef = ref<HTMLElement | null>(null);
+const unreadCount = ref(0);
+const lastSeenMessageId = ref<string>('');
+const isAtTop = ref(true);
 
 const messages = computed(() => {
-  // Reverse to show newest first (top) so enter animations work
-  return gameStore.juiceMessages.slice(0, 20).reverse();
+  // Newest first (top)
+  return [...gameStore.juiceMessages].reverse().slice(0, 20);
 });
+
+// Track new messages
+watch(() => gameStore.juiceMessages.length, (newLength, oldLength) => {
+  if (newLength > oldLength && !isAtTop.value) {
+    unreadCount.value++;
+  }
+  
+  // Auto-scroll to top if at top
+  if (isAtTop.value) {
+    nextTick(() => scrollToTop());
+  }
+}, { immediate: false });
+
+function handleScroll() {
+  if (!feedRef.value) return;
+  isAtTop.value = feedRef.value.scrollTop < 50;
+  
+  if (isAtTop.value) {
+    unreadCount.value = 0;
+    if (messages.value.length > 0) {
+      lastSeenMessageId.value = messages.value[0].id;
+    }
+  }
+}
+
+function scrollToTop() {
+  if (feedRef.value) {
+    feedRef.value.scrollTo({ top: 0, behavior: 'smooth' });
+    unreadCount.value = 0;
+  }
+}
+
+function isNewPost(message: any): boolean {
+  if (!lastSeenMessageId.value) return false;
+  const messageIndex = messages.value.findIndex(m => m.id === message.id);
+  const lastSeenIndex = messages.value.findIndex(m => m.id === lastSeenMessageId.value);
+  return messageIndex < lastSeenIndex;
+}
+
+onMounted(() => {
+  if (messages.value.length > 0) {
+    lastSeenMessageId.value = messages.value[0].id;
+  }
+  scrollToTop();
+  
+  // Check for unmoderated critical posts every turn
+  checkCriticalPosts();
+});
+
+function checkCriticalPosts() {
+  const criticalPosts = messages.value.filter(m => 
+    m.isCritical && 
+    !m.hasBeenModerated && 
+    (gameStore.currentTurn - m.turn >= 8)
+  );
+  
+  // These will have their mock comments added by the store
+}
+
+function handleDelete(message: any) {
+  const success = gameStore.deletePost(message.id);
+  if (!success) {
+    alert('Not enough money! Need 50B');
+  }
+}
+
+function handleBan(message: any) {
+  const success = gameStore.banUser(message.id);
+  if (!success) {
+    alert('Not enough money! Need 200B');
+  }
+}
+
+function handleIgnore(message: any) {
+  // Mark as handled but do nothing - penalties will apply
+  message.hasBeenModerated = true;
+  gameStore.addJuiceMessage({
+    text: '🤷 The Orange chose to ignore the criticism. Bold move!',
+    type: 'nonsense'
+  });
+}
 
 function getAvatar(type: string): string {
   const avatars = {
@@ -315,14 +431,31 @@ function getComments(message: { id: string; turn: number; type: string }): Comme
 }
 
 .juice-post {
-  padding: 8px 12px;
-  border-bottom: 1px solid #2f3336;
-  transition: background 0.2s ease;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
   cursor: pointer;
 }
 
 .juice-post:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.juice-post.post-new {
+  background: rgba(255, 107, 53, 0.1);
+  border-left: 3px solid #ff6b35;
+  animation: highlight-new 3s ease-out forwards;
+}
+
+@keyframes highlight-new {
+  0% {
+    background: rgba(255, 107, 53, 0.3);
+    box-shadow: 0 0 20px rgba(255, 107, 53, 0.4);
+  }
+  100% {
+    background: rgba(255, 107, 53, 0.05);
+    box-shadow: none;
+  }
 }
 
 .post-header {
@@ -387,6 +520,105 @@ function getComments(message: { id: string; turn: number; type: string }): Comme
 .post-content :deep(.highlight) {
   color: #ff6b35;
   font-weight: 600;
+}
+
+/* Moderation Actions */
+.moderation-actions {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 2px solid rgba(239, 68, 68, 0.4);
+  border-radius: 8px;
+  animation: pulse-critical 2s ease-in-out infinite;
+}
+
+@keyframes pulse-critical {
+  0%, 100% { border-color: rgba(239, 68, 68, 0.4); }
+  50% { border-color: rgba(239, 68, 68, 0.7); }
+}
+
+.critical-warning {
+  color: #ef4444;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.moderation-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mod-btn {
+  flex: 1;
+  min-width: 90px;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.delete-btn {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
+.delete-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+.ban-btn {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+.ban-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.ignore-btn {
+  background: rgba(107, 114, 128, 0.3);
+  color: #9ca3af;
+  border: 1px solid #4b5563;
+}
+
+.ignore-btn:hover {
+  background: rgba(107, 114, 128, 0.4);
+}
+
+/* Mock Comments */
+.mock-comments {
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(239, 68, 68, 0.05);
+  border-left: 3px solid #ef4444;
+  border-radius: 4px;
+}
+
+.comments-header {
+  color: #ef4444;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.mock-comment {
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.mock-comment:last-child {
+  border-bottom: none;
 }
 
 .post-stats {
