@@ -13,45 +13,7 @@ import { INITIAL_STATS, HEALTH_TIERS, SLOT_SYMBOLS } from '@/types/game';
 import { getRandomPlans, ALL_PLANS } from '@/data/plans';
 import { generateJuiceMessage } from '@/data/juice';
 import { ACHIEVEMENTS, type Achievement } from '@/types/achievements';
-
-// Import critical messages
-const CRITICAL_MESSAGES = [
-  "🚨 BREAKING: Leaked documents show @TheOrangeOfficial's tax returns are... interesting. Very interesting. #LemonFiles",
-  "📉 Reports: Multiple advisors quit this week citing 'moral concerns' and 'sanity preservation' #ExodusWatch",
-  "🔍 Investigation reveals @TheOrangeOfficial's degree is from 'Totally Legit University Online' #FakeCredentials",
-  "💰 Sources: @TheOrangeOfficial owes $500B to foreign entities. 'Business as usual' says spokesperson #FollowTheMoney",
-  "🤥 Fact-check: @TheOrangeOfficial made 247 false claims this week. That's a new record! #PathologicalLiar",
-  "😬 Former aide: 'He can't read. We use picture books.' White House: 'FAKE NEWS!' #TellAll",
-  "🍋 Whistleblower: 'The Lemon Files are real. I have copies.' #ThisIsHuge #Scandal",
-  "📱 @TheOrangeOfficial accidentally tweets nuclear codes. Again. #NationalSecurity #Oops",
-  "🤡 Polls show 73% of fruits think @TheOrangeOfficial is 'embarrassing' and 'unqualified' #Approval",
-  "📰 NYT: 'The Orange is losing his mind' - 12 current aides confirm #Anonymous #Chaos",
-  "💸 Forensic accountant: 'This isn't creative accounting, this is fraud' #FollowTheMoney",
-  "🎪 World leaders caught laughing at @TheOrangeOfficial during summit #NoRespect #Humiliating",
-  "⚖️ Breaking: Grand jury indictments imminent. @TheOrangeOfficial lawyers lawyering up lawyers #LegalTrouble",
-  "🔥 Leaked audio: @TheOrangeOfficial admits 'I have no idea what I'm doing' #TruthSlips",
-  "📉 Stock market tanks after @TheOrangeOfficial tweet storm. Again. #EconomicAnxiety",
-  "🌍 Foreign press: 'America elected... THAT?!' #WorldwideDisbelief",
-  "🤦 Staff physically removes Sharpie from @TheOrangeOfficial's hand during weather briefing #StableGenius",
-  "💀 Medical experts: '@TheOrangeOfficial shows clear signs of cognitive decline' #Concerning",
-  "🗳️ Election officials: 'He definitely lost. By a lot. Stop asking.' #DenialAintJustaRiver",
-  "🎤 Hot mic catches @TheOrangeOfficial: 'These idiots believe everything I say' #Leaked",
-  "📊 Insider trading investigation focuses on @TheOrangeOfficial's suspiciously timed tweets #SEC",
-  "🔐 Former general: '@TheOrangeOfficial gave classified intel to enemies for laughs' #Treason?",
-  "💩 Aide reveals: 'We have a team that just follows him cleaning up disasters' #DamageControl",
-  "🎭 Psychologist: '@TheOrangeOfficial exhibits textbook narcissistic personality disorder' #Diagnosis",
-  "📱 Twitter removes @TheOrangeOfficial post for 'inciting violence'. Again. #PlatformViolations",
-  "🏦 Bank leaks: @TheOrangeOfficial's accounts show 'extremely suspicious activity' #MoneyLaundering",
-  "🤬 Veteran aide quits: 'I can't work for this man anymore. My conscience won't allow it' #Morals",
-  "📰 Bombshell report: @TheOrangeOfficial family profited $2B from presidency #Corruption",
-  "🎪 Late night hosts have field day with latest @TheOrangeOfficial gaffe #CantMakeThisUp",
-  "⚡ Staff caught editing @TheOrangeOfficial's speeches in real-time to 'make sense' #Embarrassing",
-  "🌐 International community: 'We no longer take @TheOrangeOfficial seriously' #Reputation",
-  "💼 Business partners: 'We're distancing ourselves from the Orange brand' #Toxic",
-  "🔊 Leaked call: @TheOrangeOfficial tries to pressure officials to 'find votes' #ElectionFraud",
-  "📉 Loyalty among inner circle at all-time low. 'Everyone's looking for exits' #SinkingShip",
-  "🎯 Critics: '@TheOrangeOfficial is the most corrupt leader in modern history' #Legacy",
-];
+import { CRITICAL_MESSAGES, POSITIVE_MESSAGES, ORANGE_COMMENTS } from './modules/messages';
 
 export const useGameStore = defineStore('game', () => {
   // Core state
@@ -1003,6 +965,14 @@ export const useGameStore = defineStore('game', () => {
       message.type = 'news'; // Critical posts are always news
     }
     
+    // 8% chance for positive post that can be engaged with
+    if ((msg.type === 'news' || msg.type === 'nonsense') && Math.random() < 0.08) {
+      message.text = POSITIVE_MESSAGES[Math.floor(Math.random() * POSITIVE_MESSAGES.length)];
+      message.isPositive = true;
+      message.hasBeenEngaged = false;
+      message.type = 'positive';
+    }
+    
     juiceMessages.value.unshift(message);
 
     // Keep only last 50 messages
@@ -1176,24 +1146,74 @@ export const useGameStore = defineStore('game', () => {
         }
       }, delay * (i + 1)); // Stagger the delays
     }
-    
-    // Apply penalties for not moderating (after first comment appears)
+
+    // Apply penalties after 8 turns
     setTimeout(() => {
-      if (message.hasBeenModerated) return;
+      if (message.hasBeenModerated || (currentTurn.value - message.turn < 8)) return;
       
+      // Harsh penalties for ignoring critical posts
       stats.value.loyalty = Math.max(0, stats.value.loyalty - 5);
       stats.value.support = Math.max(0, stats.value.support - 5);
-      stats.value.health = Math.max(0, stats.value.health - 3);
+      stats.value.health = Math.max(0, stats.value.health - 5);
       
       showStatChange('👥', -5);
       showStatChange('📊', -5);
-      showStatChange('❤️', -3);
+      showStatChange('❤️', -5);
       
       addJuiceMessage({
-        text: '💬 Critical post is getting mocked heavily in the comments... This looks bad. #PR_Disaster',
+        text: `💥 @TheOrangeOfficial ignored critical scandal! Loyalty, support, AND health all tanking! #Consequences`,
         type: 'news'
       });
-    }, 1000); // After 1 second
+    }, 100);
+  }
+
+  function engageWithPositivePost(messageId: string, commentIndex: number) {
+    const message = juiceMessages.value.find(m => m.id === messageId);
+    if (!message || message.hasBeenEngaged || !message.isPositive) return;
+    
+    const comment = ORANGE_COMMENTS[commentIndex];
+    message.hasBeenEngaged = true;
+    message.selectedComment = comment;
+    
+    // Rewards for engaging with positive content
+    const supportGain = 3 + Math.floor(Math.random() * 3); // 3-5 support
+    const loyaltyGain = 2 + Math.floor(Math.random() * 2); // 2-3 loyalty
+    
+    stats.value.support = Math.min(100, stats.value.support + supportGain);
+    stats.value.loyalty = Math.min(100, stats.value.loyalty + loyaltyGain);
+    
+    showStatChange('📊', supportGain);
+    showStatChange('👥', loyaltyGain);
+    
+    addJuiceMessage({
+      text: `🎉 @TheOrangeOfficial ENGAGES with supporters! "${comment}" Fanbase ENERGIZED! #WinningBigly`,
+      type: 'nonsense'
+    });
+    
+    checkAchievements();
+    return true;
+  }
+
+  function likePositivePost(messageId: string) {
+    const message = juiceMessages.value.find(m => m.id === messageId);
+    if (!message || message.hasBeenEngaged || !message.isPositive) return;
+    
+    message.hasBeenEngaged = true;
+    
+    // Small rewards for just liking
+    const supportGain = 1 + Math.floor(Math.random() * 2); // 1-2 support
+    
+    stats.value.support = Math.min(100, stats.value.support + supportGain);
+    
+    showStatChange('📊', supportGain);
+    
+    addJuiceMessage({
+      text: `❤️ @TheOrangeOfficial likes a post praising him! Fans go WILD! #SelfLove`,
+      type: 'nonsense'
+    });
+    
+    checkAchievements();
+    return true;
   }
 
   function generateTurnJuice() {
@@ -1396,6 +1416,8 @@ export const useGameStore = defineStore('game', () => {
     rant,
     deletePost,
     banUser,
+    engageWithPositivePost,
+    likePositivePost,
     showStatChange,
     checkAchievements,
     dismissAchievement,

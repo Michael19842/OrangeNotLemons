@@ -64,12 +64,15 @@ export interface PlanCard {
 export interface JuiceMessage {
   id: string;
   text: string;
-  type: 'news' | 'rumor' | 'hint' | 'nonsense' | 'player' | 'critical';
+  type: 'news' | 'rumor' | 'hint' | 'nonsense' | 'player' | 'critical' | 'positive';
   relatedPlanId?: string;
   turn: number;
   isCritical?: boolean;
   hasBeenModerated?: boolean;
   mockComments?: string[];
+  isPositive?: boolean;
+  hasBeenEngaged?: boolean;
+  selectedComment?: string;
 }
 
 export interface SlotSymbol {

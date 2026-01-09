@@ -121,15 +121,35 @@ function formatBillions(value: number): string {
 }
 
 .stat-bar-fill.health {
-  background: linear-gradient(90deg, #ef4444, #22c55e);
+  background: #22c55e;
+}
+
+.stat-item.warning .stat-bar-fill.health {
+  background: #f59e0b;
+}
+
+.stat-item.danger .stat-bar-fill.health {
+  background: #ef4444;
 }
 
 .stat-bar-fill.loyalty {
-  background: linear-gradient(90deg, #f59e0b, #3b82f6);
+  background: #3b82f6;
+}
+
+.stat-item.warning .stat-bar-fill.loyalty {
+  background: #f59e0b;
+}
+
+.stat-item.danger .stat-bar-fill.loyalty {
+  background: #ef4444;
 }
 
 .stat-bar-fill.support {
-  background: linear-gradient(90deg, #8b5cf6, #06b6d4);
+  background: #06b6d4;
+}
+
+.stat-item.warning .stat-bar-fill.support {
+  background: #8b5cf6;
 }
 
 .stat-bar-fill.luck {
@@ -143,8 +163,11 @@ function formatBillions(value: number): string {
 .stat-value {
   font-size: 0.7rem;
   font-weight: bold;
-  min-width: 20px;
+  min-width: 22px;
   text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-item.money {
@@ -157,6 +180,9 @@ function formatBillions(value: number): string {
   text-align: center;
   font-size: 0.8rem;
   color: #22c55e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-item.money.danger .money-value {

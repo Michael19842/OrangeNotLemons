@@ -32,6 +32,7 @@
     <p class="disclaimer">
       This is a work of satire. Any resemblance to actual fruits,
       living or deceased, is purely coincidental. 🍋
+      <router-link to="/disclaimer" class="disclaimer-link">Legal Stuff</router-link>
     </p>
     
     <!-- Achievements Modal -->
@@ -241,5 +242,19 @@ function startGame() {
   font-style: italic;
   line-height: 1.4;
   margin-top: 30px;
+}
+
+.disclaimer-link {
+  color: #ff6b35;
+  text-decoration: none;
+  margin-left: 8px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid transparent;
+}
+
+.disclaimer-link:hover {
+  color: #ff8c35;
+  border-bottom-color: #ff6b35;
 }
 </style>

@@ -34,6 +34,46 @@
           </div>
           <div class="post-content" v-html="formatMessage(message.text)"></div>
           
+          <!-- Positive post engagement options -->
+          <div v-if="message.isPositive && !message.hasBeenEngaged" class="positive-actions">
+            <div class="positive-prompt">
+              ✨ Great press! Choose how to engage with your supporters!
+            </div>
+            <div class="engagement-buttons">
+              <button class="engage-btn like-btn" @click="handleLike(message)">
+                ❤️ Like (+1-2 📊)
+              </button>
+              <button class="engage-btn comment-btn-trigger" @click="toggleComments(message)">
+                💬 Comment (+3-5 📊, +2-3 👥)
+              </button>
+            </div>
+            
+            <!-- Comment options (shown after clicking comment button) -->
+            <div v-if="showCommentsFor === message.id" class="comment-options">
+              <div class="comment-prompt">💬 Choose your reply:</div>
+              <div class="comment-selector">
+                <button 
+                  v-for="(comment, idx) in getRandomComments(3)" 
+                  :key="idx"
+                  class="comment-option" 
+                  @click="handleComment(message, idx)"
+                >
+                  <span class="comment-number">{{ idx + 1 }}.</span>
+                  <span class="comment-text">{{ comment }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Show selected comment -->
+          <div v-if="message.isPositive && message.hasBeenEngaged && message.selectedComment" class="engaged-comment">
+            <div class="orange-response">
+              <span class="orange-avatar">🍊</span>
+              <span class="orange-name">@TheOrangeOfficial</span> replied:
+            </div>
+            <div class="response-text">"{{ message.selectedComment }}"</div>
+          </div>
+          
           <!-- Critical post moderation options -->
           <div v-if="message.isCritical && !message.hasBeenModerated" class="moderation-actions">
             <div class="critical-warning">
@@ -94,10 +134,24 @@ const feedRef = ref<HTMLElement | null>(null);
 const unreadCount = ref(0);
 const lastSeenMessageId = ref<string>('');
 const isAtTop = ref(true);
+const showCommentsFor = ref<string | null>(null);
 
 const messages = computed(() => {
-  // Newest first (top)
-  return [...gameStore.juiceMessages].reverse().slice(0, 20);
+  // Newest first (top), keep critical messages visible
+  const allMessages = [...gameStore.juiceMessages].reverse();
+  const criticalMessages = allMessages.filter(m => m.isCritical && !m.hasBeenModerated);
+  const otherMessages = allMessages.filter(m => !m.isCritical || m.hasBeenModerated);
+  
+  // Always show all critical messages + up to 30 total
+  const messagesToShow = [...criticalMessages];
+  const remainingSlots = 30 - criticalMessages.length;
+  
+  if (remainingSlots > 0) {
+    messagesToShow.push(...otherMessages.slice(0, remainingSlots));
+  }
+  
+  // Sort by turn descending (newest first) to maintain order
+  return messagesToShow.sort((a, b) => b.turn - a.turn);
 });
 
 // Track new messages
@@ -197,13 +251,97 @@ function handleIgnore(message: any) {
   });
 }
 
+function handleLike(message: any) {
+  gameStore.likePositivePost(message.id);
+  showCommentsFor.value = null;
+}
+
+function handleComment(message: any, commentIndex: number) {
+  gameStore.engageWithPositivePost(message.id, commentIndex);
+  showCommentsFor.value = null;
+}
+
+function toggleComments(message: any) {
+  if (showCommentsFor.value === message.id) {
+    showCommentsFor.value = null;
+  } else {
+    showCommentsFor.value = message.id;
+  }
+}
+
+const displayedComments = ref<string[]>([]);
+
+function getRandomComments(count: number): string[] {
+  if (displayedComments.value.length === 0) {
+    const ORANGE_SUPPORTER_COMMENTS = [
+      "TREMENDOUS! Nobody does it better!",
+      "BEST ORANGE EVER! So smart!",
+      "This is why we LOVE you!",
+      "The haters are so JEALOUS!",
+      "GENIUS move! 4D chess!",
+      "FAKE NEWS won't report this!",
+      "GREATEST leader in history!",
+      "They said it couldn't be done!",
+      "SO MUCH WINNING!",
+      "Absolutely PERFECT!",
+      "NOBODY could do this but you!",
+      "The swamp is TERRIFIED!",
+      "HISTORIC! Textbook material!",
+      "BRILLIANT strategy!",
+      "LEGENDARY! Hall of fame!",
+      "You're a HERO! We love you!",
+      "Most STABLE GENIUS ever!",
+      "They can't handle your SUCCESS!",
+      "MFGA! Make Fruitland Great!",
+      "You tell 'em boss! FACTS!",
+      "Haters gonna hate! Winners WIN!",
+      "BEAUTIFUL! Absolutely beautiful!",
+      "Best decision EVER made!",
+      "This is what we NEEDED!",
+      "YUGE! Absolutely YUGE!",
+      "Making promises & KEEPING them!",
+      "They're not sending their best!",
+      "Believe me, NOBODY better!",
+      "Not tired of winning yet!",
+      "The BEST is yet to come!",
+      "Fantastic! Simply fantastic!",
+      "No collusion! Vindication!",
+      "WITCH HUNT is over! You won!",
+      "Very legal! Very cool!",
+      "Strong and powerful! ALPHA!",
+      "They WISH they could do this!",
+      "EPIC! Absolutely EPIC!",
+      "More winning! Keep it coming!",
+      "You're doing AMAZING!",
+      "GOAT status confirmed!",
+      "The people DEMANDED this!",
+      "Can't stop! Won't stop!",
+      "Checkmate! Never saw it coming!",
+      "Mainstream media BTFO!",
+      "This is the timeline we deserve!",
+      "Presidential! Very presidential!",
+      "Lock them up! Drain swamp!",
+      "Fruitland first! Always!",
+      "Build that wall! Figuratively!",
+      "My president! OUR president!",
+    ];
+    
+    // Shuffle and pick random comments
+    const shuffled = [...ORANGE_SUPPORTER_COMMENTS].sort(() => Math.random() - 0.5);
+    displayedComments.value = shuffled.slice(0, count);
+  }
+  
+  return displayedComments.value;
+}
+
 function getAvatar(type: string): string {
   const avatars = {
     news: '📰',
     hint: '💡',
     rumor: '👂',
     nonsense: '🤪',
-    player: '🍊'
+    player: '🍊',
+    positive: '⭐'
   };
   return avatars[type as keyof typeof avatars] || '🍊';
 }
@@ -214,7 +352,8 @@ function getAuthor(type: string): string {
     hint: 'Insider Tips',
     rumor: 'The Rumor Mill',
     nonsense: 'Shitposting Central',
-    player: 'The Orange'
+    player: 'The Orange',
+    positive: 'OrangeFan Network'
   };
   return authors[type as keyof typeof authors] || 'The Juice';
 }
@@ -225,7 +364,8 @@ function getHandle(type: string): string {
     hint: '@InsiderTips',
     rumor: '@RumorMill',
     nonsense: '@ShitpostHQ',
-    player: '@TheOrangeOfficial'
+    player: '@TheOrangeOfficial',
+    positive: '@OrangeFanNetwork'
   };
   return handles[type as keyof typeof handles] || '@TheJuice';
 }
@@ -753,6 +893,203 @@ function getComments(message: { id: string; turn: number; type: string }): Comme
 .post-player {
   border-left: 2px solid #ff6b35;
   background: rgba(255, 107, 53, 0.05);
+}
+
+.post-positive {
+  border-left: 2px solid #22c55e;
+  background: rgba(34, 197, 94, 0.05);
+}
+
+/* Positive Post Engagement */
+.positive-actions {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 2px solid rgba(34, 197, 94, 0.4);
+  border-radius: 8px;
+  animation: pulse-positive 2s ease-in-out infinite;
+}
+
+@keyframes pulse-positive {
+  0%, 100% { border-color: rgba(34, 197, 94, 0.4); }
+  50% { border-color: rgba(34, 197, 94, 0.7); }
+}
+
+.positive-prompt {
+  color: #22c55e;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.engagement-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.engagement-buttons .engage-btn {
+  flex: 1;
+}
+
+.comment-options {
+  border-top: 1px solid rgba(34, 197, 94, 0.3);
+  padding-top: 8px;
+  margin-top: 8px;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.comment-prompt {
+  color: #22c55e;
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.comment-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.comment-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 4px;
+  padding: 6px 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  font-size: 0.65rem;
+  color: #e2e8f0;
+}
+
+.comment-option:hover {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: #22c55e;
+  transform: translateX(4px);
+}
+
+.comment-number {
+  color: #22c55e;
+  font-weight: bold;
+  font-size: 0.7rem;
+  min-width: 16px;
+}
+
+.comment-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.comment-bonus {
+  color: #888;
+  font-size: 0.6rem;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.engage-btn {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+  text-align: center;
+  min-height: 36px;
+}
+
+.like-btn {
+  background: rgba(255, 107, 53, 0.1);
+  color: #ff6b35;
+  border: 2px solid rgba(255, 107, 53, 0.4);
+  font-weight: 700;
+}
+
+.like-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+  border-color: #ff6b35;
+  background: rgba(255, 107, 53, 0.2);
+}
+
+.comment-btn-trigger {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  border: 2px solid rgba(34, 197, 94, 0.4);
+  font-weight: 700;
+}
+
+.comment-btn-trigger:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+  border-color: #22c55e;
+}
+
+.comment-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.engaged-comment {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 107, 53, 0.08);
+  border-left: 3px solid rgba(255, 107, 53, 0.4);
+  border-radius: 4px;
+}
+
+.orange-response {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+.orange-avatar {
+  font-size: 0.85rem;
+}
+
+.orange-name {
+  color: #ff6b35;
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+
+.response-text {
+  color: #d1d5db;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-style: normal;
+  line-height: 1.4;
 }
 
 /* Modal styles */

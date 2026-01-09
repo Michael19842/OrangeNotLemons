@@ -54,15 +54,18 @@
         </div>
         
         <div v-if="spinsRemaining === 0 && allResults.length > 0" class="total-display">
-          <div class="total-label">TOTAL SCORE</div>
-          <div class="total-value" :class="getScoreClass(totalScore)">{{ totalScore }}</div>
-          <div class="total-breakdown">
-            <span v-for="(result, i) in allResults" :key="i" class="breakdown-item">
-              {{ result.reels.map(r => r.emoji).join('') }}
-              <span :class="{ positive: result.score > 0, negative: result.score < 0 }">
+          <div class="total-header">
+            <div class="total-label">TOTAL SCORE</div>
+            <div class="total-value" :class="getScoreClass(totalScore)">{{ totalScore }}</div>
+          </div>
+          <div class="spins-summary">
+            <div v-for="(result, i) in allResults" :key="i" class="spin-slot">
+              <div class="spin-number">Spin {{ i + 1 }}</div>
+              <div class="spin-symbols">{{ result.reels.map(r => r.emoji).join('') }}</div>
+              <div class="spin-score" :class="{ positive: result.score > 0, negative: result.score < 0 }">
                 {{ result.score > 0 ? '+' : '' }}{{ result.score }}
-              </span>
-            </span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -543,12 +546,16 @@ watch(() => gameStore.selectedPlan, () => {
   padding: 8px 0;
 }
 
+.total-header {
+  margin-bottom: 12px;
+}
+
 .total-label {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: #888;
   text-transform: uppercase;
   letter-spacing: 2px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .total-value {
@@ -557,7 +564,6 @@ watch(() => gameStore.selectedPlan, () => {
   font-family: 'Courier New', monospace;
   text-shadow: 0 0 20px currentColor;
   line-height: 1.2;
-  margin-bottom: 16px;
 }
 
 .total-value.excellent {
@@ -582,44 +588,57 @@ watch(() => gameStore.selectedPlan, () => {
   50% { text-shadow: 0 0 30px currentColor, 0 0 40px currentColor; }
 }
 
-.total-breakdown {
+.spins-summary {
   display: flex;
   justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 12px;
-  padding: 12px 8px 0 8px;
+  padding-top: 12px;
   border-top: 2px solid rgba(255, 107, 53, 0.3);
-  max-width: 100%;
 }
 
-.breakdown-item {
+.spin-slot {
   background: rgba(0, 0, 0, 0.5);
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 0.9rem;
   border: 2px solid rgba(255, 107, 53, 0.4);
+  border-radius: 8px;
+  padding: 6px 8px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 4px;
+  min-width: 70px;
   transition: all 0.2s;
-  flex-shrink: 0;
-  white-space: nowrap;
 }
 
-.breakdown-item:hover {
+.spin-slot:hover {
   transform: scale(1.05);
   border-color: #ff6b35;
 }
 
-.breakdown-item .positive {
-  color: #22c55e;
-  font-weight: bold;
+.spin-number {
+  font-size: 0.65rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
-.breakdown-item .negative {
-  color: #ef4444;
+.spin-symbols {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.spin-score {
+  font-size: 0.9rem;
   font-weight: bold;
+  font-family: 'Courier New', monospace;
+}
+
+.spin-score.positive {
+  color: #22c55e;
+}
+
+.spin-score.negative {
+  color: #ef4444;
 }
 
 .ready-display {
