@@ -64,7 +64,7 @@ export interface PlanCard {
 export interface JuiceMessage {
   id: string;
   text: string;
-  type: 'news' | 'rumor' | 'hint' | 'nonsense' | 'player' | 'critical' | 'positive';
+  type: 'news' | 'rumor' | 'hint' | 'nonsense' | 'player' | 'critical' | 'positive' | 'situation';
   relatedPlanId?: string;
   turn: number;
   isCritical?: boolean;
@@ -73,6 +73,18 @@ export interface JuiceMessage {
   isPositive?: boolean;
   hasBeenEngaged?: boolean;
   selectedComment?: string;
+}
+
+// Situation system - determines which plan type is ideal this turn
+export interface Situation {
+  id: string;
+  name: string;
+  description: string;
+  hints: string[];  // Juice messages that hint at the situation
+  idealCategories: Array<'economy' | 'politics' | 'media' | 'foreign' | 'personal'>;
+  worstCategories: Array<'economy' | 'politics' | 'media' | 'foreign' | 'personal'>;
+  bonusMultiplier: number;    // Multiplier for good effects when choosing ideal plan
+  penaltyMultiplier: number;  // Multiplier for bad effects when choosing worst plan
 }
 
 export interface SlotSymbol {

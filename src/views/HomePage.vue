@@ -1,7 +1,7 @@
 <template>
   <ion-page>
     <ion-content :fullscreen="true" class="home-content">
-      <StartScreen @start="startGame" />
+      <StartScreen @start="startGame" @tutorial="showTutorial" />
     </ion-content>
   </ion-page>
 </template>
@@ -12,6 +12,11 @@ import { useRouter } from 'vue-router';
 import StartScreen from '@/components/game/StartScreen.vue';
 
 const router = useRouter();
+
+function showTutorial() {
+  // Navigate to intro with tutorial flag - tutorial starts in GamePage
+  router.push('/intro?tutorial=true');
+}
 
 function startGame() {
   router.push('/intro');

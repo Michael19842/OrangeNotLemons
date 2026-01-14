@@ -46,6 +46,32 @@
           <span class="hidden-text">{{ formatLabel(key as string) }}</span>
         </div>
       </div>
+      
+      <!-- Market Impact (always shown if exists) -->
+      <div v-if="marketImpact.length > 0" class="property revealed market-impact">
+        <div class="property-content">
+          <span class="property-label">📊 Market Buzz:</span>
+          <div class="market-effects">
+            <div v-for="effect in marketImpact" :key="effect.stockId" class="market-effect">
+              <span class="stock-emoji">{{ effect.emoji }}</span>
+              <span class="stock-name">{{ effect.name }}</span>
+              <span class="stock-hint" :class="getHintClass(effect)">
+                {{ getMarketHint(effect) }}
+              </span>
+              <button
+                v-if="effect.researchLevel < 3"
+                class="research-stock-btn"
+                @click="handleResearchStock(plan.id, effect.stockId, $event)"
+                :disabled="gameStore.stats.money < 25"
+                :title="`Research (25B) - Level ${effect.researchLevel + 1}/3`"
+              >
+                🔍
+              </button>
+              <span v-else class="research-complete">✓</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <button
@@ -65,6 +91,7 @@ import { computed } from 'vue';
 import { useGameStore } from '@/stores/gameStore';
 import { useAudio } from '@/composables/useAudio';
 import type { PlanCard } from '@/types/game';
+import { PLAN_STOCK_EFFECTS } from '@/data/stocks';
 
 const props = defineProps<{
   plan: PlanCard;
@@ -78,6 +105,24 @@ const gameStore = useGameStore();
 const { playSound } = useAudio();
 
 const isSelected = computed(() => gameStore.selectedPlan?.id === props.plan.id);
+
+const marketImpact = computed(() => {
+  const effects = PLAN_STOCK_EFFECTS[props.plan.id];
+  if (!effects) return [];
+
+  return effects.map(effect => {
+    const stock = gameStore.stocks.find(s => s.id === effect.stockId);
+    const researchLevel = gameStore.getStockResearchLevel(props.plan.id, effect.stockId);
+    return {
+      stockId: effect.stockId,
+      name: stock?.name || effect.stockId,
+      emoji: stock?.emoji || '📊',
+      change: effect.change,
+      hint: effect.hint,
+      researchLevel
+    };
+  });
+});
 const adjustedCost = computed(() => gameStore.getAdjustedCost(props.plan.baseCost));
 const canAfford = computed(() => gameStore.stats.money >= adjustedCost.value);
 const hasUnrevealedProperties = computed(() => {
@@ -112,6 +157,74 @@ function getSentimentClass(text: string | undefined): string {
   
   // Neutral/mixed
   return 'sentiment-neutral';
+}
+
+function getMarketHint(effect: { change: number; hint: string; researchLevel: number }): string {
+  // Level 0: Mystery - just show that something might happen
+  if (effect.researchLevel === 0) {
+    return '❓ Unknown impact';
+  }
+
+  // Level 1: Show vague hint text
+  if (effect.researchLevel === 1) {
+    return `💭 ${effect.hint}`;
+  }
+
+  // Level 2: Show direction only
+  if (effect.researchLevel === 2) {
+    return effect.change > 0 ? '📈 Likely positive' : '📉 Likely negative';
+  }
+
+  // Level 3: Full info with magnitude
+  if (effect.change >= 30) return '🚀 Major surge expected';
+  if (effect.change >= 15) return '📈 Strong growth likely';
+  if (effect.change >= 5) return '↗️ Slight uptick';
+  if (effect.change > 0) return '➡️ Modest gain';
+  if (effect.change > -5) return '➡️ Minor dip';
+  if (effect.change > -15) return '↘️ Dropping';
+  if (effect.change > -25) return '📉 Heavy decline';
+  return '💥 Crash imminent';
+}
+
+function getHintClass(effect: { change: number; researchLevel: number }): string {
+  // Unknown level - gray
+  if (effect.researchLevel === 0) return 'hint-unknown';
+  if (effect.researchLevel === 1) return 'hint-vague';
+
+  // Direction only or full info
+  if (effect.change >= 15) return 'hint-very-positive';
+  if (effect.change >= 5) return 'hint-positive';
+  if (effect.change > -5) return 'hint-neutral';
+  if (effect.change > -15) return 'hint-negative';
+  return 'hint-very-negative';
+}
+
+function handleResearchStock(planId: string, stockId: string, event: Event) {
+  event.stopPropagation();
+  if (gameStore.stats.money < 25) return;
+
+  // Cost 25B to research a stock hint
+  gameStore.stats.money -= 25;
+  const newLevel = gameStore.researchStock(planId, stockId);
+  playSound('research');
+
+  // Add juice message about the research
+  if (newLevel === 1) {
+    gameStore.addJuiceMessage({
+      text: `🔍 Market analysts provide a vague hint about potential sector impacts...`,
+      type: 'news'
+    });
+  } else if (newLevel === 2) {
+    gameStore.addJuiceMessage({
+      text: `📊 Deeper analysis reveals the likely direction of market movement...`,
+      type: 'news'
+    });
+  } else if (newLevel === 3) {
+    gameStore.addJuiceMessage({
+      text: `🎯 Full market intelligence acquired! Expected magnitude now known.`,
+      type: 'news'
+    });
+  }
 }
 
 function handleSelect() {
@@ -340,5 +453,102 @@ function handleRandomResearch() {
   color: #ff6b35;
   font-weight: bold;
   font-size: 0.8rem;
+}
+
+.market-impact {
+  margin-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 8px;
+}
+
+.market-effects {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.market-effect {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.stock-emoji {
+  font-size: 0.9rem;
+}
+
+.stock-name {
+  flex: 1;
+  color: #cbd5e1;
+  font-size: 0.7rem;
+}
+
+.stock-hint {
+  font-weight: 600;
+  font-size: 0.7rem;
+  font-style: italic;
+}
+
+.hint-very-positive {
+  color: #22c55e;
+}
+
+.hint-positive {
+  color: #86efac;
+}
+
+.hint-neutral {
+  color: #94a3b8;
+}
+
+.hint-negative {
+  color: #fca5a5;
+}
+
+.hint-very-negative {
+  color: #ef4444;
+}
+
+.hint-unknown {
+  color: #64748b;
+  opacity: 0.8;
+}
+
+.hint-vague {
+  color: #fbbf24;
+  opacity: 0.9;
+}
+
+.research-stock-btn {
+  padding: 2px 6px;
+  border: 1px solid rgba(255, 107, 53, 0.5);
+  border-radius: 4px;
+  background: rgba(255, 107, 53, 0.15);
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.research-stock-btn:hover:not(:disabled) {
+  background: rgba(255, 107, 53, 0.3);
+  border-color: rgba(255, 107, 53, 0.8);
+  transform: scale(1.1);
+}
+
+.research-stock-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.research-complete {
+  color: #22c55e;
+  font-size: 0.8rem;
+  flex-shrink: 0;
 }
 </style>

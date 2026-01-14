@@ -10,11 +10,10 @@
         <span class="stat-value">{{ stats.health }}</span>
       </div>
 
-      <div class="stat-item money" :class="{ danger: debt > 0 }">
+      <div class="stat-item money" :class="{ danger: stats.money < 0 }">
         <span class="stat-icon">💰</span>
-        <span class="stat-value money-value">
+        <span class="stat-value money-value" :class="{ negative: stats.money < 0 }">
           {{ formatBillions(stats.money) }}B
-          <span v-if="debt > 0" class="debt-indicator">(-{{ debt }}B)</span>
         </span>
       </div>
 
@@ -103,6 +102,11 @@ function formatBillions(value: number): string {
 
 .stat-icon {
   font-size: 0.9rem;
+}
+
+.money-value.negative {
+  color: #ef4444;
+  font-weight: bold;
 }
 
 .stat-bar-container {

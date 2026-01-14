@@ -643,3 +643,55 @@ const worthForecastText = computed(() => {
   border-radius: 2px;
 }
 </style>
+
+<style>
+/* Unscoped styles for SVG chart lines to ensure colors work properly */
+.chart-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.money-line { 
+  stroke: #22c55e !important; 
+}
+
+.money-area { 
+  fill: #22c55e !important; 
+  opacity: 0.2;
+}
+
+.debt-line { 
+  stroke: #ef4444 !important; 
+}
+
+.debt-area { 
+  fill: #ef4444 !important; 
+  opacity: 0.2;
+}
+
+.coin-line { 
+  stroke: #fbbf24 !important; 
+}
+
+.chaos-line { 
+  stroke: #a855f7 !important; 
+}
+
+.interest-line { 
+  stroke: #3b82f6 !important; 
+}
+
+.reference-line {
+  stroke: #475569 !important;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.era-divider {
+  stroke: #64748b !important;
+  stroke-width: 1;
+  opacity: 0.5;
+}
+</style>

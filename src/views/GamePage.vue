@@ -48,6 +48,7 @@
           </div>
           <div v-show="activeTab === 'cliff'" class="cliff-wrapper">
             <CliffStreet />
+            <StockTradingPanel />
           </div>
           <div v-show="activeTab === 'polls'" class="polls-wrapper">
             <PollsTracker />
@@ -60,17 +61,38 @@
         <!-- Annual Report Modal -->
         <AnnualReport />
 
-        <!-- Spacer for fixed button -->
-        <div class="action-spacer"></div>
-
         <!-- Game Over Modal -->
         <GameOverModal />
         
         <!-- Achievement Toast -->
-        <AchievementToast 
-          :achievement="currentAchievementToast" 
+        <AchievementToast
+          :achievement="currentAchievementToast"
           @dismiss="dismissToast"
         />
+
+        <!-- Interactive Tutorial -->
+        <TutorialModal
+          ref="tutorialRef"
+          @complete="onTutorialComplete"
+          @skip="onTutorialComplete"
+        />
+
+        <!-- Exit Confirmation Modal -->
+        <div v-if="showExitConfirm" class="modal-overlay exit-modal-overlay" @click="showExitConfirm = false">
+          <div class="modal-content exit-modal" @click.stop>
+            <div class="exit-icon">🚪</div>
+            <h3>Leave Game?</h3>
+            <p>Your progress will be lost if you leave now.</p>
+            <div class="exit-actions">
+              <button class="exit-btn stay-btn" @click="showExitConfirm = false">
+                🎮 Keep Playing
+              </button>
+              <button class="exit-btn leave-btn" @click="confirmExit">
+                🚶 Leave Game
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Fixed Action Buttons -->
@@ -245,7 +267,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { IonPage, IonContent } from '@ionic/vue';
+import { IonPage, IonContent, useBackButton } from '@ionic/vue';
 import { useGameStore } from '@/stores/gameStore';
 import { useAudio } from '@/composables/useAudio';
 import type { PlanCard as PlanCardType } from '@/types/game';
@@ -255,12 +277,14 @@ import StatsBar from '@/components/game/StatsBar.vue';
 import TheJuice from '@/components/game/TheJuice.vue';
 import CliffStreet from '@/components/game/CliffStreet.vue';
 import PollsTracker from '@/components/game/PollsTracker.vue';
+import StockTradingPanel from '@/components/game/StockTradingPanel.vue';
 import PlanCard from '@/components/game/PlanCard.vue';
 import SlotMachine from '@/components/game/SlotMachine.vue';
 import GameOverModal from '@/components/game/GameOverModal.vue';
 import StatChangePopover from '@/components/game/StatChangePopover.vue';
 import AnnualReport from '@/components/game/AnnualReport.vue';
 import AchievementToast from '@/components/game/AchievementToast.vue';
+import TutorialModal from '@/components/game/TutorialModal.vue';
 
 const gameStore = useGameStore();
 const { playSound, playMusic, stopMusic, preloadAudio, unlockAudio } = useAudio();
@@ -273,13 +297,20 @@ const activeTab = ref<'juice' | 'cliff' | 'polls'>('juice');
 const lastFreeBotTurn = ref(0);
 const currentAchievementToast = ref<any>(null);
 const lastReadJuiceCount = ref(0);
+const tutorialRef = ref<InstanceType<typeof TutorialModal> | null>(null);
+const isTutorialMode = ref(false);
+const showExitConfirm = ref(false);
+
+import { useRoute, useRouter } from 'vue-router';
+const route = useRoute();
+const router = useRouter();
 
 // Preload audio and initialize on mount
 onMounted(() => {
   // Initialize critical juice count
   const criticalMessages = gameStore.juiceMessages.filter(m => m.type === 'critical');
   lastReadJuiceCount.value = criticalMessages.length;
-  
+
   preloadAudio();
   // Unlock audio on first click anywhere
   const unlockOnClick = () => {
@@ -290,7 +321,44 @@ onMounted(() => {
   };
   document.addEventListener('click', unlockOnClick, { once: true });
   document.addEventListener('touchstart', unlockOnClick, { once: true });
+
+  // Check if we should start tutorial
+  if (route.query.tutorial === 'true') {
+    setTimeout(() => {
+      startTutorial();
+    }, 500);
+  }
 });
+
+function startTutorial() {
+  isTutorialMode.value = true;
+  gameStore.stopTimer(); // Pause timer during tutorial
+  tutorialRef.value?.show();
+}
+
+function onTutorialComplete() {
+  isTutorialMode.value = false;
+  gameStore.startTimer(); // Resume timer after tutorial
+}
+
+// Handle back button - show confirmation instead of leaving
+useBackButton(10, () => {
+  if (showExitConfirm.value) {
+    showExitConfirm.value = false;
+  } else if (showPlanSelector.value) {
+    showPlanSelector.value = false;
+  } else if (showRantModal.value) {
+    showRantModal.value = false;
+  } else if (!gameStore.isGameOver) {
+    showExitConfirm.value = true;
+  }
+});
+
+function confirmExit() {
+  showExitConfirm.value = false;
+  gameStore.stopTimer();
+  router.push('/home');
+}
 
 // Critical juice count - messages that need moderation action
 const unreadCriticalJuiceCount = computed(() => {
@@ -326,11 +394,28 @@ watch(() => gameStore.newlyUnlockedAchievements.length, (newCount, oldCount) => 
     // Show toast for newest achievement
     currentAchievementToast.value = gameStore.newlyUnlockedAchievements[newCount - 1];
     playSound('achievement');
-    
+
     // Auto dismiss after 5 seconds
     setTimeout(() => {
       currentAchievementToast.value = null;
     }, 5000);
+  }
+});
+
+// Watch for plan execution (selectedPlan goes from something to null)
+watch(() => gameStore.selectedPlan, (newVal, oldVal) => {
+  if (oldVal && !newVal && isTutorialMode.value) {
+    // Plan was executed
+    tutorialRef.value?.handleTutorialEvent('plan-executed');
+  }
+});
+
+// Watch for annual report - ensure slot machine is closed
+watch(() => gameStore.showAnnualReport, (isShowing) => {
+  if (isShowing) {
+    // Force close any open modals when annual report shows
+    showPlanSelector.value = false;
+    showRantModal.value = false;
   }
 });
 
@@ -426,6 +511,11 @@ function selectPlanAndClose(plan: PlanCardType) {
   playSound('click');
   gameStore.selectPlan(plan);
   showPlanSelector.value = false;
+
+  // Notify tutorial
+  if (isTutorialMode.value) {
+    tutorialRef.value?.handleTutorialEvent('plan-selected');
+  }
 }
 
 function postRant() {
@@ -483,6 +573,13 @@ function skipTurn() {
 function openPlanSelector() {
   playSound('click');
   showPlanSelector.value = true;
+
+  // Notify tutorial
+  if (isTutorialMode.value) {
+    setTimeout(() => {
+      tutorialRef.value?.handleTutorialEvent('plan-opened');
+    }, 300);
+  }
 }
 
 function openRantModal() {
@@ -620,6 +717,8 @@ onUnmounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  padding-bottom: 120px; /* Space for bottom action buttons */
+  overflow-y: auto;
 }
 
 .juice-wrapper {
@@ -627,11 +726,11 @@ onUnmounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 .juice-wrapper :deep(.juice-container) {
-  height: 100%;
-  max-height: none;
+  flex-shrink: 0;
 }
 
 .cliff-wrapper {
@@ -639,11 +738,11 @@ onUnmounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 .cliff-wrapper :deep(.cliff-street-container) {
-  height: 100%;
-  max-height: none;
+  flex-shrink: 0;
 }
 
 .polls-wrapper {
@@ -651,15 +750,10 @@ onUnmounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 .polls-wrapper :deep(.polls-tracker-container) {
-  height: 100%;
-  max-height: none;
-}
-
-.action-spacer {
-  height: 100px;
   flex-shrink: 0;
 }
 
@@ -1396,5 +1490,70 @@ onUnmounted(() => {
 .post-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Exit Confirmation Modal */
+.exit-modal-overlay {
+  z-index: 3000;
+}
+
+.exit-modal {
+  text-align: center;
+  max-width: 400px;
+}
+
+.exit-icon {
+  font-size: 4rem;
+  margin-bottom: 16px;
+}
+
+.exit-modal h3 {
+  color: #ff6b35;
+  font-size: 1.5rem;
+  margin: 0 0 12px 0;
+}
+
+.exit-modal p {
+  color: #aaa;
+  font-size: 1rem;
+  margin: 0 0 24px 0;
+}
+
+.exit-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.exit-btn {
+  padding: 14px 24px;
+  font-size: 1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.stay-btn {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
+}
+
+.stay-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.6);
+}
+
+.leave-btn {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 2px solid rgba(239, 68, 68, 0.4);
+}
+
+.leave-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.6);
 }
 </style>

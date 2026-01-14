@@ -201,7 +201,7 @@ describe('Game Balance Tests', () => {
 
     it('should allow second term with sufficient loyalty', () => {
       // Set up for end of first term - currentTurn must be > maxTurns for evaluation
-      gameStore.currentTurn = 49; // Just past maxTurns (48)
+      gameStore.currentTurn = 17; // Just past maxTurns (16)
       gameStore.stats.loyalty = 90; // High enough for any threshold
       gameStore.stats.support = 50;
       gameStore.currentScore = 100;
@@ -211,7 +211,7 @@ describe('Game Balance Tests', () => {
 
       // Since loyalty is high enough, should proceed to term 2
       expect(gameStore.term).toBe(2);
-      expect(gameStore.maxTurns).toBe(96);
+      expect(gameStore.maxTurns).toBe(32);
       expect(gameStore.isGameOver).toBe(false);
     });
 
@@ -230,7 +230,7 @@ describe('Game Balance Tests', () => {
 
     it('should end game if loyalty too low at term end', () => {
       // Set up for end of first term - currentTurn must be > maxTurns for evaluation
-      gameStore.currentTurn = 49; // Just past maxTurns (48)
+      gameStore.currentTurn = 17; // Just past maxTurns (16)
       gameStore.stats.loyalty = 30; // Too low for any threshold
       gameStore.stats.support = 50;
 
@@ -243,7 +243,7 @@ describe('Game Balance Tests', () => {
 
     it('should grant victory after completing two terms', () => {
       gameStore.term = 2;
-      gameStore.currentTurn = 96;
+      gameStore.currentTurn = 33; // Past second term maxTurns (32)
       gameStore.stats.loyalty = 85;
       gameStore.currentScore = 500;
       

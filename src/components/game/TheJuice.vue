@@ -243,8 +243,11 @@ function handleBan(message: any) {
 }
 
 function handleIgnore(message: any) {
-  // Mark as handled but do nothing - penalties will apply
-  message.hasBeenModerated = true;
+  // Mark as handled in the store - penalties will apply
+  const index = gameStore.juiceMessages.findIndex(m => m.id === message.id);
+  if (index !== -1) {
+    gameStore.juiceMessages[index].hasBeenModerated = true;
+  }
   gameStore.addJuiceMessage({
     text: '🤷 The Orange chose to ignore the criticism. Bold move!',
     type: 'nonsense'
@@ -341,7 +344,8 @@ function getAvatar(type: string): string {
     rumor: '👂',
     nonsense: '🤪',
     player: '🍊',
-    positive: '⭐'
+    positive: '⭐',
+    situation: '🚨'
   };
   return avatars[type as keyof typeof avatars] || '🍊';
 }
@@ -353,7 +357,8 @@ function getAuthor(type: string): string {
     rumor: 'The Rumor Mill',
     nonsense: 'Shitposting Central',
     player: 'The Orange',
-    positive: 'OrangeFan Network'
+    positive: 'OrangeFan Network',
+    situation: 'SITUATION ROOM'
   };
   return authors[type as keyof typeof authors] || 'The Juice';
 }
@@ -365,7 +370,8 @@ function getHandle(type: string): string {
     rumor: '@RumorMill',
     nonsense: '@ShitpostHQ',
     player: '@TheOrangeOfficial',
-    positive: '@OrangeFanNetwork'
+    positive: '@OrangeFanNetwork',
+    situation: '@SituationAlert'
   };
   return handles[type as keyof typeof handles] || '@TheJuice';
 }
@@ -900,6 +906,17 @@ function getComments(message: { id: string; turn: number; type: string }): Comme
   background: rgba(34, 197, 94, 0.05);
 }
 
+.post-situation {
+  border-left: 3px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  animation: pulse-situation 2s ease-in-out infinite;
+}
+
+@keyframes pulse-situation {
+  0%, 100% { background: rgba(245, 158, 11, 0.1); }
+  50% { background: rgba(245, 158, 11, 0.15); }
+}
+
 /* Positive Post Engagement */
 .positive-actions {
   margin-top: 12px;
@@ -1234,12 +1251,17 @@ function getComments(message: { id: string; turn: number; type: string }): Comme
 }
 
 .juice-message-leave-active {
-  position: absolute;
-  animation: fadeOut 0.3s ease-out;
+  transition: all 0.2s ease-out;
+  opacity: 0;
+  transform: translateX(-100%);
+  max-height: 0;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
 }
 
 .juice-message-move {
-  transition: transform 0.5s ease;
+  transition: transform 0.3s ease;
 }
 
 @keyframes slideInFromTop {
@@ -1254,18 +1276,6 @@ function getComments(message: { id: string; turn: number; type: string }): Comme
   100% {
     transform: translateY(0) scale(1);
     opacity: 1;
-  }
-}
-
-@keyframes fadeOut {
-  0% {
-    opacity: 1;
-    max-height: 500px;
-  }
-  100% {
-    opacity: 0;
-    max-height: 0;
-    transform: scale(0.95);
   }
 }
 </style>

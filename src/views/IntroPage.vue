@@ -62,7 +62,9 @@ import { useRouter } from 'vue-router';
 import { useGameStore } from '@/stores/gameStore';
 import { useAudio } from '@/composables/useAudio';
 
+import { useRoute } from 'vue-router';
 const router = useRouter();
+const route = useRoute();
 const gameStore = useGameStore();
 const { playMusic, unlockAudio } = useAudio();
 const currentSlide = ref(0);
@@ -229,7 +231,12 @@ function prevSlide() {
 
 function continueToGame() {
   gameStore.initGame();
-  router.push('/game');
+  // Pass tutorial flag if it was set
+  if (route.query.tutorial === 'true') {
+    router.push('/game?tutorial=true');
+  } else {
+    router.push('/game');
+  }
 }
 </script>
 

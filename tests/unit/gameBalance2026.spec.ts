@@ -340,10 +340,10 @@ describe('Game Balance 2026 - Current Mechanics', () => {
 
   describe('Overall Balance Assessment', () => {
     it('should allow victory with skilled play', () => {
-      // Simulate optimal play for 96 turns
+      // Simulate optimal play for 32 turns (2 terms)
       let turnsPassed = 0;
       
-      while (gameStore.currentTurn < 96 && !gameStore.isGameOver && turnsPassed < 100) {
+      while (gameStore.currentTurn < 32 && !gameStore.isGameOver && turnsPassed < 40) {
         turnsPassed++;
         
         // Keep stats healthy
@@ -360,13 +360,14 @@ describe('Game Balance 2026 - Current Mechanics', () => {
         gameStore.skipTurn();
         
         // Handle first term transition
-        if (gameStore.currentTurn === 48) {
+        if (gameStore.currentTurn === 17) {
           gameStore.stats.loyalty = 90; // Ensure second term
+          gameStore.stats.support = 50;
         }
       }
       
       // Should reach end game
-      expect(gameStore.currentTurn).toBeGreaterThanOrEqual(48);
+      expect(gameStore.currentTurn).toBeGreaterThanOrEqual(16);
     });
 
     it('should punish reckless play', () => {

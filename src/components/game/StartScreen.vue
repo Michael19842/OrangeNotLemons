@@ -17,8 +17,12 @@
       <span class="high-score-value">{{ highScore }}</span>
     </div>
 
-    <button class="start-btn" @click="startGame">
+    <button class="start-btn" @click="handleStart">
       🍊 Start Game
+    </button>
+    
+    <button v-if="!showTutorialPrompt && tutorialCompleted" class="tutorial-btn" @click="startTutorial">
+      📚 Tutorial
     </button>
     
     <button class="achievements-menu-btn" @click="showAchievements = true">
@@ -34,6 +38,24 @@
       living or deceased, is purely coincidental. 🍋
       <router-link to="/disclaimer" class="disclaimer-link">Legal Stuff</router-link>
     </p>
+    
+    <!-- Tutorial Prompt Modal -->
+    <div v-if="showTutorialPrompt" class="tutorial-prompt-overlay" @click="declineTutorial">
+      <div class="tutorial-prompt-modal" @click.stop>
+        <div class="prompt-icon">🎓</div>
+        <h2>First time here?</h2>
+        <p>Would you like an interactive tutorial to learn the game basics?</p>
+        <div class="prompt-actions">
+          <button class="prompt-btn accept-btn" @click="acceptTutorial">
+            📚 Yes, show me!
+          </button>
+          <button class="prompt-btn decline-btn" @click="declineTutorial">
+            🎮 No, let me play!
+          </button>
+        </div>
+        <p class="prompt-hint">You can always access the tutorial later from the main menu</p>
+      </div>
+    </div>
     
     <!-- Achievements Modal -->
     <AchievementsModal v-if="showAchievements" @close="showAchievements = false" />
@@ -51,15 +73,37 @@ import SettingsModal from '@/components/game/SettingsModal.vue';
 
 const gameStore = useGameStore();
 const highScore = computed(() => gameStore.highScore);
+const tutorialCompleted = computed(() => gameStore.tutorialCompleted);
 const showAchievements = ref(false);
 const showSettings = ref(false);
+const showTutorialPrompt = ref(false);
 
 const emit = defineEmits<{
   start: [];
+  tutorial: [];
 }>();
 
-function startGame() {
+function handleStart() {
+  if (!tutorialCompleted.value) {
+    showTutorialPrompt.value = true;
+  } else {
+    emit('start');
+  }
+}
+
+function acceptTutorial() {
+  showTutorialPrompt.value = false;
+  emit('tutorial');
+}
+
+function declineTutorial() {
+  showTutorialPrompt.value = false;
+  gameStore.setTutorialCompleted();
   emit('start');
+}
+
+function startTutorial() {
+  emit('tutorial');
 }
 </script>
 
@@ -184,6 +228,31 @@ function startGame() {
   transform: scale(0.98);
 }
 
+.tutorial-btn {
+  padding: 14px 45px;
+  font-size: 1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 20px;
+  box-shadow: 0 6px 30px rgba(16, 185, 129, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.tutorial-btn:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 8px 40px rgba(16, 185, 129, 0.6);
+}
+
+.tutorial-btn:active {
+  transform: scale(0.98);
+}
+
 .achievements-menu-btn {
   padding: 16px 50px;
   font-size: 1.1rem;
@@ -256,5 +325,127 @@ function startGame() {
 .disclaimer-link:hover {
   color: #ff8c35;
   border-bottom-color: #ff6b35;
+}
+
+/* Tutorial Prompt Modal */
+.tutorial-prompt-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tutorial-prompt-modal {
+  background: linear-gradient(145deg, #2a2a3e 0%, #1a1a2e 100%);
+  border: 2px solid rgba(255, 107, 53, 0.4);
+  border-radius: 20px;
+  padding: 40px 32px;
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.7);
+  animation: slideUp 0.4s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.prompt-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  animation: bounce 1s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.tutorial-prompt-modal h2 {
+  margin: 0 0 16px 0;
+  color: #ff6b35;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.tutorial-prompt-modal p {
+  color: #ccc;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin: 0 0 32px 0;
+}
+
+.prompt-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.prompt-btn {
+  padding: 16px 32px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.accept-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+}
+
+.accept-btn:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 6px 30px rgba(16, 185, 129, 0.6);
+}
+
+.decline-btn {
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  color: white;
+  box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4);
+}
+
+.decline-btn:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 6px 30px rgba(255, 107, 53, 0.6);
+}
+
+.prompt-btn:active {
+  transform: scale(0.98);
+}
+
+.prompt-hint {
+  font-size: 0.85rem !important;
+  color: #888 !important;
+  font-style: italic;
+  margin: 0 !important;
 }
 </style>

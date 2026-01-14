@@ -7,18 +7,21 @@ import type {
   DelayedEffect,
   JuiceMessage,
   SlotResult,
-  FinancialSnapshot
+  FinancialSnapshot,
+  Situation
 } from '@/types/game';
 import { INITIAL_STATS, HEALTH_TIERS, SLOT_SYMBOLS } from '@/types/game';
 import { getRandomPlans, ALL_PLANS } from '@/data/plans';
+import { getRandomSituation } from '@/data/situations';
 import { generateJuiceMessage } from '@/data/juice';
 import { ACHIEVEMENTS, type Achievement } from '@/types/achievements';
 import { CRITICAL_MESSAGES, POSITIVE_MESSAGES, ORANGE_COMMENTS } from './modules/messages';
+import { STOCKS, PLAN_STOCK_EFFECTS, type Stock, type StockEffect } from '@/data/stocks';
 
 export const useGameStore = defineStore('game', () => {
   // Core state
   const currentTurn = ref(1);
-  const maxTurns = ref(48);
+  const maxTurns = ref(16); // 4 years × 4 quarters
   const term = ref<1 | 2>(1);
   const isGameOver = ref(false);
   const gameOverReason = ref<'death' | 'leaked' | 'term_ended' | 'victory' | null>(null);
@@ -30,13 +33,57 @@ export const useGameStore = defineStore('game', () => {
   const debt = ref(0);
   const interestRate = ref(0.08); // 8% base interest (increased from 5%)
   
+  // Trading - portfolio of stocks
+  interface Position {
+    shares: number;
+    averageCost: number;
+  }
+  const portfolio = ref<Record<string, Position>>({}); // stockId -> Position
+  
+  // Initialize stocks with some price history for charts
+  const initializeStockHistory = (stock: Stock): Stock => {
+    const history: number[] = [];
+    let price = stock.basePrice;
+    
+    // Generate 8 historical prices with small random variations
+    for (let i = 0; i < 8; i++) {
+      const variation = (Math.random() - 0.5) * stock.volatility * 10; // Use stock's volatility
+      price = Math.max(10, Math.round(price + variation));
+      history.push(price);
+    }
+    
+    // Last two prices should end at current basePrice
+    history.push(Math.round((price + stock.basePrice) / 2));
+    history.push(stock.basePrice);
+    
+    return { ...stock, priceHistory: history };
+  };
+  
+  const stocks = ref<Stock[]>(STOCKS.map(initializeStockHistory));
+  const coinHoldings = ref(0); // Legacy coin holdings (keep for backward compatibility)
+
+  // Stock research - tracks how much the player knows about each stock's plan effects
+  // Key: `${planId}-${stockId}`, Value: research level (0-3)
+  const stockResearch = ref<Record<string, number>>({});
+
+  // Trade history for profit/loss tracking with animations
+  interface TradeResult {
+    stockId: string;
+    type: 'buy' | 'sell' | 'short' | 'close';
+    shares: number;
+    amount: number;
+    profitLoss?: number;
+    timestamp: number;
+  }
+  const lastTradeResult = ref<TradeResult | null>(null);
+
   // Loyalty recovery tracking
   const lastLoyaltyRecoveryTurn = ref(0);
 
   // Turn state
   const availablePlans = ref<PlanCard[]>([]);
   const selectedPlan = ref<PlanCard | null>(null);
-  const timeRemaining = ref(30);
+  const timeRemaining = ref(90); // 1.5 minutes per turn
   const timerInterval = ref<number | null>(null);
 
   // Effects queue
@@ -86,6 +133,13 @@ export const useGameStore = defineStore('game', () => {
 
   // Annual report flag - set when it's time to show the report
   const showAnnualReport = ref(false);
+  
+  // Tutorial state
+  const tutorialCompleted = ref(localStorage.getItem('orangeTutorialCompleted') === 'true');
+
+  // Current situation - determines which plan type is ideal
+  const currentSituation = ref<Situation | null>(null);
+  const lastPlanChoice = ref<'ideal' | 'worst' | 'neutral' | null>(null);
 
   // Computed
   const healthTier = computed(() => {
@@ -99,14 +153,16 @@ export const useGameStore = defineStore('game', () => {
   const maxCards = computed(() => HEALTH_TIERS[healthTier.value].maxCards);
   const researchMultiplier = computed(() => HEALTH_TIERS[healthTier.value].researchMultiplier);
 
-  const monthName = computed(() => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months[(currentTurn.value - 1) % 12];
+  const quarterName = computed(() => {
+    const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+    return quarters[(currentTurn.value - 1) % 4];
   });
 
+  // Keep monthName as alias for backwards compatibility
+  const monthName = quarterName;
+
   const year = computed(() => {
-    return Math.floor((currentTurn.value - 1) / 12) + 1;
+    return Math.floor((currentTurn.value - 1) / 4) + 1;
   });
 
   // Helper: Clamp stats to valid ranges
@@ -117,13 +173,18 @@ export const useGameStore = defineStore('game', () => {
   // Actions
   function initGame() {
     currentTurn.value = 1;
-    maxTurns.value = 48;
+    maxTurns.value = 16; // 4 years × 4 quarters
     term.value = 1;
     isGameOver.value = false;
     gameOverReason.value = null;
     stats.value = { ...INITIAL_STATS };
     debt.value = 0;
     interestRate.value = 0.08; // Match new base rate
+    coinHoldings.value = 0; // Reset coin holdings
+    portfolio.value = {}; // Reset stock portfolio
+    stocks.value = STOCKS.map(initializeStockHistory); // Reset stock prices with history
+    stockResearch.value = {}; // Reset stock research
+    lastTradeResult.value = null; // Reset trade result
     lastLoyaltyRecoveryTurn.value = 0; // Reset loyalty recovery tracker
     availablePlans.value = [];
     selectedPlan.value = null;
@@ -135,6 +196,8 @@ export const useGameStore = defineStore('game', () => {
     slotResults.value = [];
     currentScore.value = 0;
     showAnnualReport.value = false;
+    currentSituation.value = null;
+    lastPlanChoice.value = null;
 
     // Reset achievements
     achievements.value = ACHIEVEMENTS.map(a => ({ ...a, unlocked: false }));
@@ -170,6 +233,9 @@ export const useGameStore = defineStore('game', () => {
 
   // Record a snapshot of financial data for Cliff Street charts
   function recordFinancialSnapshot() {
+    // Update debt value (debt = absolute value of negative money)
+    debt.value = stats.value.money < 0 ? Math.abs(stats.value.money) : 0;
+    
     financialHistory.value.push({
       turn: currentTurn.value,
       money: stats.value.money,
@@ -270,6 +336,20 @@ export const useGameStore = defineStore('game', () => {
         text: `💸 Interest payment: ${interest}B. Total debt: ${Math.abs(stats.value.money)}B. Rate: ${(effectiveRate * 100).toFixed(1)}%`,
         type: 'news'
       });
+
+      // Loyalty penalty for being in debt
+      // Small penalty starts at 100B debt, increasing with debt size
+      if (debtAmount >= 100) {
+        const loyaltyPenalty = Math.min(5, Math.floor(debtAmount / 200)); // 1 point per 200B debt, max 5
+        stats.value.loyalty = Math.max(0, stats.value.loyalty - loyaltyPenalty);
+        
+        if (loyaltyPenalty > 0) {
+          addJuiceMessage({
+            text: `👥 Inner circle worried about debt! Loyalty -${loyaltyPenalty}. "Can't we just print more money?" #DebtCrisis`,
+            type: 'critical'
+          });
+        }
+      }
     }
 
     // Fluctuate coin valuation based on chaos
@@ -284,23 +364,33 @@ export const useGameStore = defineStore('game', () => {
     // Get new plans based on health tier
     availablePlans.value = getRandomPlans(maxCards.value);
 
-    // Reset selection state
+    // Pick a situation for this turn and generate hints
+    currentSituation.value = getRandomSituation();
+    lastPlanChoice.value = null;
+    generateSituationHints();
+
+    // Reset selection state FIRST - this closes the slot machine overlay
     selectedPlan.value = null;
-    timeRemaining.value = 30;
     slotSpinsRemaining.value = 0;
     currentSlotTotal.value = 0;
     slotResults.value = [];
 
-    // Generate some juice messages
-    generateTurnJuice();
-
-    // Check if it's time for annual report (every 12 turns = 1 year)
-    // Do this AFTER all turn setup is complete
-    if (currentTurn.value > 0 && currentTurn.value % 12 === 0) {
+    // Check if it's time for annual report (every 4 turns = 1 year)
+    // Do this BEFORE starting timer, but AFTER closing slots
+    if (currentTurn.value > 0 && currentTurn.value % 4 === 0) {
       showAnnualReport.value = true;
+      timeRemaining.value = 90; // Set time but don't start timer
+      // Generate juice messages for the upcoming turn
+      generateTurnJuice();
       // Don't start timer - will be started when report is closed
       return;
     }
+
+    // Reset time and start timer
+    timeRemaining.value = 90; // 1.5 minutes per turn
+
+    // Generate some juice messages
+    generateTurnJuice();
 
     // Start timer
     startTimer();
@@ -310,11 +400,11 @@ export const useGameStore = defineStore('game', () => {
   function applyChaosEffects() {
     const chaos = stats.value.chaos;
 
-    // Chaos effects - softened for better balance
-    if (chaos > 80) {
-      // Very high chaos: -2 support, -1 loyalty (75% chance), -1 health per turn
+    // Chaos effects - significantly softened for better balance
+    if (chaos > 85) {
+      // Very high chaos: -2 support, -1 loyalty (50% chance), -1 health per turn
       stats.value.support = Math.max(0, stats.value.support - 2);
-      if (Math.random() < 0.75) {
+      if (Math.random() < 0.5) {
         stats.value.loyalty = Math.max(0, stats.value.loyalty - 1);
       }
       stats.value.health = Math.max(0, stats.value.health - 1);
@@ -324,10 +414,10 @@ export const useGameStore = defineStore('game', () => {
           type: 'news'
         });
       }
-    } else if (chaos > 60) {
-      // High chaos: -1 support, -1 loyalty (50% chance) per turn
+    } else if (chaos > 70) {
+      // High chaos: -1 support, -1 loyalty (30% chance) per turn
       stats.value.support = Math.max(0, stats.value.support - 1);
-      if (Math.random() < 0.5) {
+      if (Math.random() < 0.3) {
         stats.value.loyalty = Math.max(0, stats.value.loyalty - 1);
       }
       if (Math.random() < 0.3) {
@@ -336,9 +426,9 @@ export const useGameStore = defineStore('game', () => {
           type: 'news'
         });
       }
-    } else if (chaos > 40) {
-      // Medium chaos: -1 support every other turn (50% chance)
-      if (Math.random() < 0.5) {
+    } else if (chaos > 50) {
+      // Medium chaos: -1 support every other turn (30% chance)
+      if (Math.random() < 0.3) {
         stats.value.support = Math.max(0, stats.value.support - 1);
       }
     }
@@ -499,23 +589,24 @@ export const useGameStore = defineStore('game', () => {
   function selectPlan(plan: PlanCard) {
     const adjustedCost = getAdjustedCost(plan.baseCost);
 
-    if (stats.value.money < adjustedCost && debt.value === 0) {
-      // Need to take on debt
-      const needed = adjustedCost - stats.value.money;
-      debt.value = needed;
-      stats.value.money = 0;
-      addJuiceMessage({
-        text: `🏦 Borrowed ${needed}B coins to fund the plan. Don't worry, what could go wrong?`,
-        type: 'news'
-      });
-    } else if (stats.value.money < adjustedCost) {
-      // Already in debt, add more
-      debt.value += adjustedCost;
-      interestRate.value = Math.min(0.35, interestRate.value + 0.03); // Interest increases 3% (max 35%)
-      addJuiceMessage({
-        text: `📈 More debt! Interest rate now ${(interestRate.value * 100).toFixed(0)}%. Totally sustainable!`,
-        type: 'news'
-      });
+    if (stats.value.money < adjustedCost) {
+      // Need to take on debt or increase existing debt
+      const needed = adjustedCost - Math.max(0, stats.value.money);
+      
+      // Track old money to handle negative properly
+      const hadMoney = stats.value.money >= 0;
+      
+      // Deduct what we can from money
+      stats.value.money -= adjustedCost;
+      
+      // Money is now negative, increase interest rate
+      if (stats.value.money < 0) {
+        interestRate.value = Math.min(0.35, interestRate.value + 0.03); // Interest increases 3% (max 35%)
+        addJuiceMessage({
+          text: `📈 ${hadMoney ? 'Went into' : 'More'} debt! Interest rate now ${(interestRate.value * 100).toFixed(0)}%. Totally sustainable!`,
+          type: 'news'
+        });
+      }
     } else {
       stats.value.money -= adjustedCost;
     }
@@ -636,9 +727,13 @@ export const useGameStore = defineStore('game', () => {
     const plan = selectedPlan.value;
     const score = currentSlotTotal.value;
 
+    // Evaluate if this was the right plan for the situation
+    const planChoice = evaluatePlanChoice(plan);
+    lastPlanChoice.value = planChoice;
+
     // Find matching outcome - if score is above max, use best outcome
     let outcome = plan.outcomes.find(o => score >= o.minScore && score <= o.maxScore);
-    
+
     if (!outcome) {
       // If no match, check if score is above all ranges (too good!)
       const highestMaxScore = Math.max(...plan.outcomes.map(o => o.maxScore));
@@ -651,21 +746,47 @@ export const useGameStore = defineStore('game', () => {
       }
     }
 
-    // Apply immediate effects
-    applyEffects(outcome.immediateEffects);
+    // Apply immediate effects WITH situation modifier
+    applyEffectsWithSituation(outcome.immediateEffects, planChoice);
 
-    // Add to score
-    currentScore.value += Math.max(0, score);
+    // Update stock prices based on plan effects
+    updateStockPrices(plan.id);
 
-    // Queue delayed effects if any
+    // Add to score (bonus for ideal choice, penalty for worst)
+    let scoreModifier = 1.0;
+    if (planChoice === 'ideal') scoreModifier = 1.5;
+    if (planChoice === 'worst') scoreModifier = 0.5;
+    currentScore.value += Math.max(0, Math.floor(score * scoreModifier));
+
+    // Queue delayed effects if any (also modified by situation)
     if (outcome.delayedEffects && outcome.delayedEffects.length > 0) {
       outcome.delayedEffects.forEach(delayedEffect => {
+        // Modify delayed effects based on plan choice
+        let modifiedEffects = { ...delayedEffect.effects };
+        if (planChoice === 'ideal') {
+          // Reduce negative delayed effects for good choices
+          Object.keys(modifiedEffects).forEach(key => {
+            const value = modifiedEffects[key as keyof GameStats];
+            if (value !== undefined && value < 0) {
+              modifiedEffects[key as keyof GameStats] = Math.floor(value * 0.7);
+            }
+          });
+        } else if (planChoice === 'worst') {
+          // Increase negative delayed effects for bad choices
+          Object.keys(modifiedEffects).forEach(key => {
+            const value = modifiedEffects[key as keyof GameStats];
+            if (value !== undefined && value < 0) {
+              modifiedEffects[key as keyof GameStats] = Math.floor(value * 1.5);
+            }
+          });
+        }
+
         const effect: DelayedEffect = {
           id: `${plan.id}-${currentTurn.value}-${delayedEffect.turnsDelay}`,
           triggerTurn: currentTurn.value + delayedEffect.turnsDelay,
           planId: plan.id,
           description: delayedEffect.description,
-          effects: delayedEffect.effects
+          effects: modifiedEffects
         };
         pendingEffects.value.push(effect);
       });
@@ -676,6 +797,9 @@ export const useGameStore = defineStore('game', () => {
       text: `📢 ${outcome.title}: ${outcome.description}`,
       type: 'news'
     });
+
+    // Generate reaction messages based on plan choice quality
+    generatePlanChoiceReactions(plan, planChoice);
 
     // Next turn
     currentTurn.value++;
@@ -699,6 +823,10 @@ export const useGameStore = defineStore('game', () => {
 
     const plan = selectedPlan.value;
 
+    // Evaluate if this was the right plan for the situation
+    const planChoice = evaluatePlanChoice(plan);
+    lastPlanChoice.value = planChoice;
+
     // Calculate blind score with breakdown for display
     const chaosBonus = Math.floor(stats.value.chaos * 0.3); // 0-30 points from chaos
     const supportBonus = Math.floor(stats.value.support * 0.2); // 0-20 points from support
@@ -712,7 +840,7 @@ export const useGameStore = defineStore('game', () => {
 
     // Find matching outcome - if score is above max, use best outcome
     let outcome = plan.outcomes.find(o => blindScore >= o.minScore && blindScore <= o.maxScore);
-    
+
     if (!outcome) {
       // If no match, check if score is above all ranges (too good!)
       const highestMaxScore = Math.max(...plan.outcomes.map(o => o.maxScore));
@@ -725,21 +853,45 @@ export const useGameStore = defineStore('game', () => {
       }
     }
 
-    // Apply immediate effects
-    applyEffects(outcome.immediateEffects);
+    // Apply immediate effects WITH situation modifier
+    applyEffectsWithSituation(outcome.immediateEffects, planChoice);
 
-    // Add to score
-    currentScore.value += Math.max(0, blindScore);
+    // Update stock prices based on plan effects
+    updateStockPrices(plan.id);
 
-    // Queue delayed effects if any
+    // Add to score (bonus for ideal choice, penalty for worst)
+    let scoreModifier = 1.0;
+    if (planChoice === 'ideal') scoreModifier = 1.5;
+    if (planChoice === 'worst') scoreModifier = 0.5;
+    currentScore.value += Math.max(0, Math.floor(blindScore * scoreModifier));
+
+    // Queue delayed effects if any (also modified by situation)
     if (outcome.delayedEffects && outcome.delayedEffects.length > 0) {
       outcome.delayedEffects.forEach(delayedEffect => {
+        // Modify delayed effects based on plan choice
+        let modifiedEffects = { ...delayedEffect.effects };
+        if (planChoice === 'ideal') {
+          Object.keys(modifiedEffects).forEach(key => {
+            const value = modifiedEffects[key as keyof GameStats];
+            if (value !== undefined && value < 0) {
+              modifiedEffects[key as keyof GameStats] = Math.floor(value * 0.7);
+            }
+          });
+        } else if (planChoice === 'worst') {
+          Object.keys(modifiedEffects).forEach(key => {
+            const value = modifiedEffects[key as keyof GameStats];
+            if (value !== undefined && value < 0) {
+              modifiedEffects[key as keyof GameStats] = Math.floor(value * 1.5);
+            }
+          });
+        }
+
         const effect: DelayedEffect = {
           id: `${plan.id}-${currentTurn.value}-${delayedEffect.turnsDelay}`,
           triggerTurn: currentTurn.value + delayedEffect.turnsDelay,
           planId: plan.id,
           description: delayedEffect.description,
-          effects: delayedEffect.effects
+          effects: modifiedEffects
         };
         pendingEffects.value.push(effect);
       });
@@ -756,6 +908,9 @@ export const useGameStore = defineStore('game', () => {
       type: 'news'
     });
 
+    // Generate reaction messages based on plan choice quality
+    generatePlanChoiceReactions(plan, planChoice);
+
     // Next turn
     currentTurn.value++;
     checkAchievements();
@@ -766,14 +921,14 @@ export const useGameStore = defineStore('game', () => {
     // Going golfing restores health but costs loyalty and support
     const healthGain = Math.min(15, 100 - stats.value.health); // +15 health (max 100)
     stats.value.health = Math.min(100, stats.value.health + healthGain);
-    stats.value.loyalty = Math.max(0, stats.value.loyalty - 3);
-    stats.value.support = Math.max(0, stats.value.support - 3);
+    stats.value.loyalty = Math.max(0, stats.value.loyalty - 2);
+    stats.value.support = Math.max(0, stats.value.support - 2);
     
     if (healthGain > 0) {
       showStatChange('❤️', healthGain);
     }
-    showStatChange('👥', -3);
-    showStatChange('📊', -3);
+    showStatChange('👥', -2);
+    showStatChange('📊', -2);
     
     // Track for achievement
     achievementTracking.value.turnsSkipped++;
@@ -900,7 +1055,7 @@ export const useGameStore = defineStore('game', () => {
       if (meetsLoyalty && meetsScore && stats.value.support >= 40 && term.value === 1) {
         // Second term! (now requires minimum support too)
         term.value = 2;
-        maxTurns.value = 96;
+        maxTurns.value = 32; // Keep at 32 instead of 96 (8 years total × 4 quarters)
         stats.value.health = Math.min(100, stats.value.health + 20);
         stats.value.loyalty = Math.max(50, stats.value.loyalty - 20);
         // Increase chaos slightly in second term
@@ -1217,12 +1372,128 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function generateTurnJuice() {
-    // Generate 2-4 random messages per turn
-    const count = 2 + Math.floor(Math.random() * 3);
+    // Generate 1-2 random messages per turn (reduced since we have situation hints)
+    const count = 1 + Math.floor(Math.random() * 2);
     for (let i = 0; i < count; i++) {
       const msg = generateJuiceMessage(availablePlans.value, stats.value, currentTurn.value);
       addJuiceMessage(msg);
     }
+  }
+
+  function generateSituationHints() {
+    if (!currentSituation.value) return;
+
+    // Add 2-3 hints about the current situation
+    const hints = currentSituation.value.hints;
+    const hintCount = 2 + Math.floor(Math.random() * 2); // 2-3 hints
+    const selectedHints = [...hints].sort(() => Math.random() - 0.5).slice(0, hintCount);
+
+    selectedHints.forEach((hint, index) => {
+      // Stagger the hints slightly
+      setTimeout(() => {
+        addJuiceMessage({
+          text: hint,
+          type: 'situation'
+        });
+      }, index * 200);
+    });
+  }
+
+  // Check if chosen plan matches the situation
+  function evaluatePlanChoice(plan: PlanCard): 'ideal' | 'worst' | 'neutral' {
+    if (!currentSituation.value) return 'neutral';
+
+    if (currentSituation.value.idealCategories.includes(plan.category)) {
+      return 'ideal';
+    }
+    if (currentSituation.value.worstCategories.includes(plan.category)) {
+      return 'worst';
+    }
+    return 'neutral';
+  }
+
+  // Apply situation multiplier to effects
+  function applyEffectsWithSituation(effects: Partial<GameStats>, choice: 'ideal' | 'worst' | 'neutral') {
+    if (!currentSituation.value || choice === 'neutral') {
+      applyEffects(effects);
+      return;
+    }
+
+    const modifiedEffects: Partial<GameStats> = {};
+
+    Object.entries(effects).forEach(([key, value]) => {
+      if (value === undefined) return;
+      const statKey = key as keyof GameStats;
+
+      if (choice === 'ideal') {
+        // Ideal choice: boost positive effects, reduce negative effects
+        if (value > 0) {
+          modifiedEffects[statKey] = Math.floor(value * currentSituation.value!.bonusMultiplier);
+        } else {
+          modifiedEffects[statKey] = Math.floor(value * 0.7); // Reduce penalties by 30%
+        }
+      } else if (choice === 'worst') {
+        // Worst choice: reduce positive effects, boost negative effects
+        if (value > 0) {
+          modifiedEffects[statKey] = Math.floor(value * 0.5); // Halve rewards
+        } else {
+          modifiedEffects[statKey] = Math.floor(value * currentSituation.value!.penaltyMultiplier);
+        }
+      }
+    });
+
+    applyEffects(modifiedEffects);
+  }
+
+  // Generate reaction messages based on plan choice
+  function generatePlanChoiceReactions(plan: PlanCard, choice: 'ideal' | 'worst' | 'neutral') {
+    const idealReactions = [
+      `🎯 PERFECT MOVE! ${plan.name} is exactly what the situation called for! #BigBrainOrange`,
+      `✅ Advisors are THRILLED! "${plan.name}" was the right call! #WinningStrategy`,
+      `🌟 Brilliant timing! The Orange reads the room PERFECTLY! #StableGenius`,
+      `👏 Inner circle applauds! This is why they follow The Orange! #Leadership`,
+      `📈 Smart choice! ${plan.name} addresses the crisis head-on! #StrategicGenius`
+    ];
+
+    const worstReactions = [
+      `❌ DISASTER! ${plan.name} is the WORST possible move right now! #OrangeBlunder`,
+      `😱 Advisors in SHOCK! "Why ${plan.name} NOW?!" they ask! #BadTiming`,
+      `🔥 Critics pounce! "Completely tone-deaf!" says opposition! #OutOfTouch`,
+      `📉 Wrong move at the wrong time! The situation demanded something else! #Fail`,
+      `💀 Political analysts can't believe it! "${plan.name}" ignores the obvious crisis! #Clueless`,
+      `🤦 Staff members reportedly "face-palming" after ${plan.name} announcement! #Yikes`
+    ];
+
+    const neutralReactions = [
+      `🤷 ${plan.name} is... a choice. Not great, not terrible. #MidMove`,
+      `📊 Mixed reactions to ${plan.name}. Could've been more strategic. #Meh`,
+      `😐 Advisors shrug at ${plan.name}. "It's fine, I guess?" #Whatever`
+    ];
+
+    let reactions: string[];
+    let reactionCount: number;
+
+    if (choice === 'ideal') {
+      reactions = idealReactions;
+      reactionCount = 2 + Math.floor(Math.random() * 2); // 2-3 positive reactions
+    } else if (choice === 'worst') {
+      reactions = worstReactions;
+      reactionCount = 3 + Math.floor(Math.random() * 2); // 3-4 negative reactions
+    } else {
+      reactions = neutralReactions;
+      reactionCount = 1; // 1 neutral reaction
+    }
+
+    const selectedReactions = [...reactions].sort(() => Math.random() - 0.5).slice(0, reactionCount);
+
+    selectedReactions.forEach((reaction, index) => {
+      setTimeout(() => {
+        addJuiceMessage({
+          text: reaction,
+          type: choice === 'ideal' ? 'positive' : (choice === 'worst' ? 'news' : 'nonsense')
+        });
+      }, 500 + index * 300);
+    });
   }
 
   function getShareText(): string {
@@ -1294,10 +1565,10 @@ export const useGameStore = defineStore('game', () => {
   function rant(botCount: number) {
     // Simple rant function for tests
     // Calculate success probability
-    const baseProbability = 50;
-    const loyaltyBonus = Math.floor(stats.value.loyalty * 0.3);
-    const supportBonus = Math.floor(stats.value.support * 0.2);
-    const successProbability = Math.min(95, Math.max(5, baseProbability + loyaltyBonus + supportBonus));
+    const baseProbability = 30; // Lower base from 50 to 30
+    const loyaltyBonus = Math.floor(stats.value.loyalty * 0.25); // Reduced from 0.3
+    const supportBonus = Math.floor(stats.value.support * 0.15); // Reduced from 0.2
+    const successProbability = Math.min(90, Math.max(5, baseProbability + loyaltyBonus + supportBonus));
     
     // Generate generic rant text
     const rantTexts = [
@@ -1365,6 +1636,338 @@ export const useGameStore = defineStore('game', () => {
       newlyUnlockedAchievements.value.splice(index, 1);
     }
   }
+  
+  function setTutorialCompleted() {
+    tutorialCompleted.value = true;
+    localStorage.setItem('orangeTutorialCompleted', 'true');
+  }
+
+  // Trading functions
+  function buyCoinTokens(amount: number, cost: number) {
+    stats.value.money -= cost;
+    coinHoldings.value += amount;
+    
+    showStatChange('💰', -cost);
+    
+    const isMarginTrading = stats.value.money < 0;
+    
+    addJuiceMessage({
+      text: isMarginTrading 
+        ? `📈 @TheOrangeOfficial buys ${amount.toLocaleString()} market shares ON MARGIN! Risky! #MarketManipulation #BigBrain`
+        : `📈 @TheOrangeOfficial acquires ${amount.toLocaleString()} market shares! Strategic move! #Investing #StockMarket`,
+      type: 'news'
+    });
+    
+    // No loyalty change - market manipulation is neutral
+  }
+
+  function sellCoinTokens(amount: number, revenue: number) {
+    if (coinHoldings.value >= amount) {
+      coinHoldings.value -= amount;
+      stats.value.money += revenue;
+      
+      showStatChange('💰', revenue);
+      
+      addJuiceMessage({
+        text: `💸 @TheOrangeOfficial dumps ${amount.toLocaleString()} shares for ${revenue}B! Taking profits! #SellHigh #Markets`,
+        type: 'news'
+      });
+      
+      // No loyalty change - it's just business
+    }
+  }
+
+  function shortCoinTokens(amount: number, revenue: number) {
+    // Short selling: receive money, but go negative on shares
+    stats.value.money += revenue;
+    coinHoldings.value -= amount; // Go negative
+    
+    showStatChange('💰', revenue);
+    
+    addJuiceMessage({
+      text: `📉 @TheOrangeOfficial shorts ${amount.toLocaleString()} shares! Betting on market crash! #ShortSelling #BearMarket`,
+      type: 'news'
+    });
+  }
+
+  function closePosition(currentPosition: number, proceeds: number) {
+    if (currentPosition > 0) {
+      // Closing long position: sell all shares
+      stats.value.money += proceeds;
+      coinHoldings.value = 0;
+      
+      showStatChange('💰', proceeds);
+      
+      addJuiceMessage({
+        text: `💸 @TheOrangeOfficial closes long position for ${proceeds}B! ${proceeds > 0 ? 'Profit secured!' : 'Cut losses!'} #ExitStrategy`,
+        type: 'news'
+      });
+    } else if (currentPosition < 0) {
+      // Closing short position: buy back shares
+      stats.value.money += proceeds; // proceeds is negative (cost)
+      coinHoldings.value = 0;
+      
+      showStatChange('💰', proceeds);
+      
+      const profit = proceeds > 0;
+      addJuiceMessage({
+        text: `🔒 @TheOrangeOfficial closes short position! ${profit ? 'Short squeeze averted!' : 'Covered the short!'} #ShortCovering`,
+        type: 'news'
+      });
+    }
+  }
+
+  // Stock Trading Functions (for multiple stocks)
+  function buyStock(stockId: string, shares: number) {
+    const stock = stocks.value.find(s => s.id === stockId);
+    if (!stock) return;
+
+    const cost = Math.ceil((shares * stock.currentPrice) / 100);
+    stats.value.money -= cost;
+
+    // Update portfolio
+    if (!portfolio.value[stockId]) {
+      portfolio.value[stockId] = { shares: 0, averageCost: stock.currentPrice };
+    }
+
+    const currentPosition = portfolio.value[stockId];
+    const totalShares = currentPosition.shares + shares;
+    const totalCost = (currentPosition.shares * currentPosition.averageCost) + (shares * stock.currentPrice);
+    currentPosition.averageCost = totalCost / totalShares;
+    currentPosition.shares = totalShares;
+
+    // Track trade result for animations
+    lastTradeResult.value = {
+      stockId,
+      type: 'buy',
+      shares,
+      amount: -cost,
+      timestamp: Date.now()
+    };
+
+    showStatChange('💰', -cost);
+
+    const isMarginTrading = stats.value.money < 0;
+    addJuiceMessage({
+      text: `📈 @TheOrangeOfficial buys ${shares.toLocaleString()} ${stock.emoji} ${stock.name} shares${isMarginTrading ? ' ON MARGIN' : ''}! ${isMarginTrading ? 'Risky move!' : 'Big money!'} #Trading`,
+      type: 'news'
+    });
+  }
+
+  function sellStock(stockId: string, shares: number) {
+    const stock = stocks.value.find(s => s.id === stockId);
+    if (!stock) return;
+
+    const position = portfolio.value[stockId];
+    if (!position || position.shares < shares) return;
+
+    const sellPrice = Math.ceil(stock.currentPrice * 0.8); // 20% spread
+    const revenue = Math.ceil((shares * sellPrice) / 100);
+
+    // Calculate profit/loss
+    const costBasis = Math.ceil((shares * position.averageCost) / 100);
+    const profitLoss = revenue - costBasis;
+
+    stats.value.money += revenue;
+    position.shares -= shares;
+
+    if (position.shares === 0) {
+      delete portfolio.value[stockId];
+    }
+
+    // Track trade result for animations
+    lastTradeResult.value = {
+      stockId,
+      type: 'sell',
+      shares,
+      amount: revenue,
+      profitLoss,
+      timestamp: Date.now()
+    };
+
+    showStatChange('💰', revenue);
+
+    addJuiceMessage({
+      text: `💸 @TheOrangeOfficial sells ${shares.toLocaleString()} ${stock.emoji} ${stock.name} shares for ${revenue}B! ${profitLoss >= 0 ? 'Profit!' : 'Cut losses!'} #Trading`,
+      type: 'news'
+    });
+  }
+
+  function shortStock(stockId: string, shares: number) {
+    const stock = stocks.value.find(s => s.id === stockId);
+    if (!stock) return;
+
+    const sellPrice = Math.ceil(stock.currentPrice * 0.8); // Sell at spread price
+    const revenue = Math.ceil((shares * sellPrice) / 100);
+    stats.value.money += revenue;
+
+    // Update portfolio with negative shares
+    if (!portfolio.value[stockId]) {
+      portfolio.value[stockId] = { shares: 0, averageCost: stock.currentPrice };
+    }
+
+    portfolio.value[stockId].shares -= shares; // Go negative
+    portfolio.value[stockId].averageCost = stock.currentPrice; // Track short entry price
+
+    // Track trade result for animations
+    lastTradeResult.value = {
+      stockId,
+      type: 'short',
+      shares,
+      amount: revenue,
+      timestamp: Date.now()
+    };
+
+    showStatChange('💰', revenue);
+
+    addJuiceMessage({
+      text: `📉 @TheOrangeOfficial shorts ${shares.toLocaleString()} ${stock.emoji} ${stock.name}! Betting on crash! #ShortSelling #BearMarket`,
+      type: 'news'
+    });
+  }
+
+  function closeStockPosition(stockId: string) {
+    const stock = stocks.value.find(s => s.id === stockId);
+    if (!stock) return;
+
+    const position = portfolio.value[stockId];
+    if (!position || position.shares === 0) return;
+
+    let proceeds = 0;
+    let profitLoss = 0;
+    const shares = Math.abs(position.shares);
+
+    if (position.shares > 0) {
+      // Closing long: sell at spread price
+      const sellPrice = Math.ceil(stock.currentPrice * 0.8);
+      proceeds = Math.ceil((shares * sellPrice) / 100);
+      const costBasis = Math.ceil((shares * position.averageCost) / 100);
+      profitLoss = proceeds - costBasis;
+      stats.value.money += proceeds;
+
+      addJuiceMessage({
+        text: `💸 @TheOrangeOfficial closes ${stock.emoji} ${stock.name} for ${proceeds}B! ${profitLoss >= 0 ? 'Winner!' : 'Ouch!'} #ExitStrategy`,
+        type: 'news'
+      });
+    } else {
+      // Closing short: buy back at current price
+      const buyPrice = stock.currentPrice;
+      const cost = Math.ceil((shares * buyPrice) / 100);
+      const shortRevenue = Math.ceil((shares * position.averageCost * 0.8) / 100);
+      profitLoss = shortRevenue - cost;
+      stats.value.money -= cost;
+      proceeds = -cost;
+
+      addJuiceMessage({
+        text: `🔒 @TheOrangeOfficial covers ${stock.emoji} ${stock.name} short! ${profitLoss >= 0 ? 'Profit!' : 'Squeezed!'} #ShortCovering`,
+        type: 'news'
+      });
+    }
+
+    // Track trade result for animations
+    lastTradeResult.value = {
+      stockId,
+      type: 'close',
+      shares,
+      amount: proceeds,
+      profitLoss,
+      timestamp: Date.now()
+    };
+
+    delete portfolio.value[stockId];
+    showStatChange('💰', proceeds);
+  }
+
+  // Research a stock to reveal hints about plan effects
+  function researchStock(planId: string, stockId: string): number {
+    const key = `${planId}-${stockId}`;
+    const currentLevel = stockResearch.value[key] || 0;
+
+    if (currentLevel >= 3) return 3; // Already fully researched
+
+    // Increase research level
+    const newLevel = Math.min(3, currentLevel + 1) as 0 | 1 | 2 | 3;
+    stockResearch.value[key] = newLevel;
+
+    return newLevel;
+  }
+
+  // Get research level for a specific plan-stock combination
+  function getStockResearchLevel(planId: string, stockId: string): number {
+    return stockResearch.value[`${planId}-${stockId}`] || 0;
+  }
+
+  // Clear trade result (after animation completes)
+  function clearTradeResult() {
+    lastTradeResult.value = null;
+  }
+
+  function updateStockPrices(planId: string) {
+    // Get stock effects for this plan
+    const effects = PLAN_STOCK_EFFECTS[planId];
+    if (!effects) return;
+
+    effects.forEach(effect => {
+      const stock = stocks.value.find(s => s.id === effect.stockId);
+      if (stock) {
+        const changePercent = effect.change / 100;
+        const newPrice = Math.max(10, Math.ceil(stock.currentPrice * (1 + changePercent)));
+        stock.currentPrice = newPrice;
+        
+        // Update price history (keep last 10 prices)
+        if (!stock.priceHistory) stock.priceHistory = [stock.basePrice];
+        stock.priceHistory.push(newPrice);
+        if (stock.priceHistory.length > 10) {
+          stock.priceHistory.shift();
+        }
+        
+        addJuiceMessage({
+          text: `${stock.emoji} ${stock.name}: ${effect.change > 0 ? '📈' : '📉'} ${Math.abs(effect.change)}%! ${effect.reason} #StockMarket`,
+          type: 'news'
+        });
+      }
+    });
+  }
+
+  // Computed for portfolio value
+  const portfolioValue = computed(() => {
+    let total = 0;
+    Object.entries(portfolio.value).forEach(([stockId, position]) => {
+      const stock = stocks.value.find(s => s.id === stockId);
+      if (stock) {
+        if (position.shares > 0) {
+          // Long position: current sell value
+          const sellPrice = Math.ceil(stock.currentPrice * 0.8);
+          total += Math.ceil((position.shares * sellPrice) / 100);
+        } else {
+          // Short position: cost to buy back (negative)
+          const buyPrice = stock.currentPrice;
+          total += Math.ceil((position.shares * buyPrice) / 100);
+        }
+      }
+    });
+    return total;
+  });
+
+  // Total cost basis of all positions
+  const portfolioCost = computed(() => {
+    let total = 0;
+    Object.entries(portfolio.value).forEach(([stockId, position]) => {
+      if (position.shares > 0) {
+        // Long: we paid averageCost per share
+        total += Math.ceil((position.shares * position.averageCost) / 100);
+      } else {
+        // Short: we received averageCost per share (negative cost = profit received)
+        total -= Math.ceil((Math.abs(position.shares) * position.averageCost) / 100);
+      }
+    });
+    return total;
+  });
+
+  // Unrealized profit/loss
+  const portfolioProfit = computed(() => {
+    return portfolioValue.value - portfolioCost.value;
+  });
 
   return {
     // State
@@ -1376,6 +1979,9 @@ export const useGameStore = defineStore('game', () => {
     stats,
     debt,
     interestRate,
+    coinHoldings,
+    portfolio,
+    stocks,
     availablePlans,
     selectedPlan,
     timeRemaining,
@@ -1389,6 +1995,9 @@ export const useGameStore = defineStore('game', () => {
     highScore,
     currentScore,
     showAnnualReport,
+    tutorialCompleted,
+    currentSituation,
+    lastPlanChoice,
     achievements,
     newlyUnlockedAchievements,
     achievementTracking,
@@ -1397,10 +2006,15 @@ export const useGameStore = defineStore('game', () => {
     maxCards,
     researchMultiplier,
     monthName,
+    quarterName,
     year,
+    portfolioValue,
+    portfolioCost,
+    portfolioProfit,
     // Actions
     initGame,
     startTurn,
+    startTimer,
     stopTimer,
     closeAnnualReport,
     selectPlan,
@@ -1421,9 +2035,25 @@ export const useGameStore = defineStore('game', () => {
     showStatChange,
     checkAchievements,
     dismissAchievement,
+    setTutorialCompleted,
     getShareText,
     getAdjustedCost,
     getSecondTermLoyaltyThreshold,
-    getMinimumScoreThreshold
+    getMinimumScoreThreshold,
+    evaluatePlanChoice,
+    buyCoinTokens,
+    sellCoinTokens,
+    shortCoinTokens,
+    closePosition,
+    buyStock,
+    sellStock,
+    shortStock,
+    closeStockPosition,
+    updateStockPrices,
+    researchStock,
+    getStockResearchLevel,
+    clearTradeResult,
+    stockResearch,
+    lastTradeResult
   };
 });

@@ -120,7 +120,8 @@ const showReport = computed(() => gameStore.showAnnualReport);
 // Update reportYear when report is shown
 watch(showReport, (isShowing) => {
   if (isShowing) {
-    reportYear.value = Math.floor(gameStore.currentTurn / 12);
+    // 4 quarters per year, so divide by 4
+    reportYear.value = Math.floor(gameStore.currentTurn / 4);
   }
 });
 
@@ -198,8 +199,8 @@ const netWorthChange = computed(() => {
 });
 
 const plansExecuted = computed(() => {
-  // Approximate: 12 turns per year, assuming most turns have a plan
-  return Math.floor(Math.random() * 3) + 10; // 10-12 plans per year
+  // 4 quarters per year, so approximately 3-4 plans per year
+  return Math.floor(Math.random() * 2) + 3; // 3-4 plans per year
 });
 
 const pendingEffects = computed(() => {
@@ -209,7 +210,7 @@ const pendingEffects = computed(() => {
 function getYearTitle(): string {
   const titles = [
     "The Year of Chaos",
-    "The Year of Tweets",
+    "The Year of The Juice",
     "The Year of Tariffs", 
     "The Year of Deals",
     "The Year of Drama",
@@ -217,7 +218,8 @@ function getYearTitle(): string {
     "The Year of Winning",
     "The Year of Distraction"
   ];
-  return titles[(reportYear.value - 1) % titles.length];
+  // Use reportYear directly (1-4), no need to subtract 1
+  return titles[reportYear.value % titles.length];
 }
 
 function getOutlookMessage(): string {
@@ -225,7 +227,7 @@ function getOutlookMessage(): string {
   const health = gameStore.stats.health;
   const support = gameStore.stats.support;
   const turnsLeft = gameStore.maxTurns - gameStore.currentTurn;
-  const yearsLeft = Math.ceil(turnsLeft / 12);
+  const yearsLeft = Math.ceil(turnsLeft / 4); // 4 quarters per year
   
   if (loyalty >= 85) {
     return `🎉 Excellent position! Your inner circle is rock solid. Keep this up for ${yearsLeft} more year${yearsLeft !== 1 ? 's' : ''} to secure re-election.`;

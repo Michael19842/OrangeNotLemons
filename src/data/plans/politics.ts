@@ -102,7 +102,7 @@ export const POLITICS_PLANS: PlanCard[] = [
             effects: { loyalty: -10, support: -5, chaos: 15 }
           },
           {
-            turnsDelay: 16,
+            turnsDelay: 12,
             description: 'Whistleblowers emerge with evidence',
             effects: { loyalty: -15, chaos: 20 }
           }
