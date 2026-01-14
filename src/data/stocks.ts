@@ -2,6 +2,7 @@
 export interface Stock {
   id: string;
   name: string;
+  ticker: string; // Stock ticker symbol (e.g., AAPL, GOOGL)
   emoji: string;
   sector: 'tech' | 'energy' | 'finance' | 'defense' | 'media' | 'healthcare' | 'real-estate' | 'manufacturing';
   basePrice: number;
@@ -15,6 +16,7 @@ export const STOCKS: Stock[] = [
   {
     id: 'maga-media',
     name: 'Truth Broadcasting Network',
+    ticker: 'TRTH',
     emoji: '📺',
     sector: 'media',
     basePrice: 50,
@@ -25,6 +27,7 @@ export const STOCKS: Stock[] = [
   {
     id: 'orange-oil',
     name: 'Patriot Energy Corp',
+    ticker: 'PATR',
     emoji: '🛢️',
     sector: 'energy',
     basePrice: 75,
@@ -35,6 +38,7 @@ export const STOCKS: Stock[] = [
   {
     id: 'wall-builders',
     name: 'BigBeautifulWall Construction',
+    ticker: 'WALL',
     emoji: '🧱',
     sector: 'manufacturing',
     basePrice: 40,
@@ -45,6 +49,7 @@ export const STOCKS: Stock[] = [
   {
     id: 'golden-casino',
     name: 'Gilded Palace Resorts',
+    ticker: 'GOLD',
     emoji: '🎰',
     sector: 'real-estate',
     basePrice: 60,
@@ -55,6 +60,7 @@ export const STOCKS: Stock[] = [
   {
     id: 'defense-first',
     name: 'Eagle Defense Industries',
+    ticker: 'EAGL',
     emoji: '🚀',
     sector: 'defense',
     basePrice: 100,
@@ -65,6 +71,7 @@ export const STOCKS: Stock[] = [
   {
     id: 'twitter-clone',
     name: 'Liberty Chirp Social',
+    ticker: 'CHRP',
     emoji: '🐦',
     sector: 'tech',
     basePrice: 35,
@@ -75,6 +82,7 @@ export const STOCKS: Stock[] = [
   {
     id: 'pharma-price',
     name: 'MediCorp Industries',
+    ticker: 'PILL',
     emoji: '💊',
     sector: 'healthcare',
     basePrice: 80,
@@ -85,6 +93,7 @@ export const STOCKS: Stock[] = [
   {
     id: 'coal-power',
     name: 'Clean Coal Energy Co',
+    ticker: 'COAL',
     emoji: '⚡',
     sector: 'energy',
     basePrice: 45,
@@ -95,6 +104,7 @@ export const STOCKS: Stock[] = [
   {
     id: 'banks-first',
     name: 'Tremendous Financial Group',
+    ticker: 'BANK',
     emoji: '🏦',
     sector: 'finance',
     basePrice: 90,
@@ -105,6 +115,7 @@ export const STOCKS: Stock[] = [
   {
     id: 'steel-america',
     name: 'United Steel Industries',
+    ticker: 'STLX',
     emoji: '🏭',
     sector: 'manufacturing',
     basePrice: 55,
@@ -115,6 +126,7 @@ export const STOCKS: Stock[] = [
   {
     id: 'fake-news',
     name: 'Legacy News Network',
+    ticker: 'FAKE',
     emoji: '📰',
     sector: 'media',
     basePrice: 30,
@@ -125,6 +137,7 @@ export const STOCKS: Stock[] = [
   {
     id: 'china-goods',
     name: 'Global Import Trading',
+    ticker: 'GYNA',
     emoji: '📦',
     sector: 'manufacturing',
     basePrice: 65,
@@ -135,6 +148,7 @@ export const STOCKS: Stock[] = [
   {
     id: 'green-energy',
     name: 'Renewable Power Systems',
+    ticker: 'WIND',
     emoji: '🌞',
     sector: 'energy',
     basePrice: 70,
@@ -145,6 +159,7 @@ export const STOCKS: Stock[] = [
   {
     id: 'immigration-tech',
     name: 'Secure Border Technologies',
+    ticker: 'BRDR',
     emoji: '🛡️',
     sector: 'defense',
     basePrice: 85,
@@ -155,6 +170,7 @@ export const STOCKS: Stock[] = [
   {
     id: 'luxury-goods',
     name: 'Premium Lifestyle Brands',
+    ticker: 'LUXE',
     emoji: '💎',
     sector: 'real-estate',
     basePrice: 120,

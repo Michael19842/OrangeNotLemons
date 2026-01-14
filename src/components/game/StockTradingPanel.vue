@@ -6,7 +6,7 @@
         <div class="result-icon">{{ tradeResultIcon }}</div>
         <div class="result-amount">{{ tradeResultText }}</div>
         <div v-if="tradeResultProfit !== null" class="result-profit" :class="{ profit: tradeResultProfit >= 0, loss: tradeResultProfit < 0 }">
-          {{ tradeResultProfit >= 0 ? '+' : '' }}${{ tradeResultProfit }}B {{ tradeResultProfit >= 0 ? 'PROFIT' : 'LOSS' }}
+          {{ tradeResultProfit >= 0 ? '+' : '' }}${{ tradeResultProfit }}M {{ tradeResultProfit >= 0 ? 'PROFIT' : 'LOSS' }}
         </div>
       </div>
     </div>
@@ -23,25 +23,25 @@
         <div class="summary-item">
           <span class="label">Cash</span>
           <span class="value" :class="{ negative: gameStore.stats.money < 0 }">
-            ${{ formatMoney(gameStore.stats.money) }}B
+            ${{ formatMoney(gameStore.stats.money) }}M
           </span>
         </div>
         <div class="summary-item">
           <span class="label">Portfolio</span>
           <span class="value" :class="portfolioClass">
-            ${{ formatMoney(gameStore.portfolioValue) }}B
+            ${{ formatMoney(gameStore.portfolioValue) }}M
           </span>
         </div>
         <div class="summary-item" :class="{ profit: gameStore.portfolioProfit > 0, loss: gameStore.portfolioProfit < 0 }">
           <span class="label">P/L</span>
           <span class="value">
-            {{ gameStore.portfolioProfit >= 0 ? '+' : '' }}${{ formatMoney(gameStore.portfolioProfit) }}B
+            {{ gameStore.portfolioProfit >= 0 ? '+' : '' }}${{ formatMoney(gameStore.portfolioProfit) }}M
           </span>
         </div>
         <div class="summary-item total">
           <span class="label">Net Worth</span>
           <span class="value" :class="{ negative: totalValue < 0 }">
-            ${{ formatMoney(totalValue) }}B
+            ${{ formatMoney(totalValue) }}M
           </span>
         </div>
       </div>
@@ -67,7 +67,9 @@
         :stock="stock"
         :position="gameStore.portfolio[stock.id]"
         @buy="openBuyModal"
+        @buyMax="executeBuyMax"
         @sell="openSellModal"
+        @sellAll="executeSellAll"
         @short="openShortModal"
         @close="openCloseModal"
       />
@@ -156,15 +158,15 @@
           <div class="cost-summary">
             <div class="cost-row">
               <span>Your Cash</span>
-              <span :class="{ negative: gameStore.stats.money < 0 }">${{ formatMoney(gameStore.stats.money) }}B</span>
+              <span :class="{ negative: gameStore.stats.money < 0 }">${{ formatMoney(gameStore.stats.money) }}M</span>
             </div>
             <div class="cost-row total">
               <span>Total Cost</span>
-              <span class="cost-value">${{ totalBuyCost }}B</span>
+              <span class="cost-value">${{ totalBuyCost }}M</span>
             </div>
             <div v-if="totalBuyCost > gameStore.stats.money" class="margin-warning">
               <span class="warning-icon">⚠️</span>
-              <span>Trading on margin! +${{ Math.abs(gameStore.stats.money - totalBuyCost) }}B debt</span>
+              <span>Trading on margin! +${{ Math.abs(gameStore.stats.money - totalBuyCost) }}M debt</span>
             </div>
           </div>
 
@@ -177,7 +179,7 @@
           >
             <span class="btn-icon">📈</span>
             <span class="btn-text">Confirm Purchase</span>
-            <span class="btn-amount">${{ totalBuyCost }}B</span>
+            <span class="btn-amount">${{ totalBuyCost }}M</span>
           </ion-button>
         </div>
       </ion-content>
@@ -255,11 +257,11 @@
             </div>
             <div class="cost-row total">
               <span>Revenue</span>
-              <span class="revenue-value">${{ totalSellRevenue }}B</span>
+              <span class="revenue-value">${{ totalSellRevenue }}M</span>
             </div>
             <div class="cost-row" :class="{ profit: estimatedProfit >= 0, loss: estimatedProfit < 0 }">
               <span>Est. P/L</span>
-              <span>{{ estimatedProfit >= 0 ? '+' : '' }}${{ estimatedProfit }}B</span>
+              <span>{{ estimatedProfit >= 0 ? '+' : '' }}${{ estimatedProfit }}M</span>
             </div>
           </div>
 
@@ -273,7 +275,7 @@
           >
             <span class="btn-icon">💸</span>
             <span class="btn-text">Confirm Sale</span>
-            <span class="btn-amount">+${{ totalSellRevenue }}B</span>
+            <span class="btn-amount">+${{ totalSellRevenue }}M</span>
           </ion-button>
         </div>
       </ion-content>
@@ -353,7 +355,7 @@
           <div class="cost-summary">
             <div class="cost-row total">
               <span>Credit Received</span>
-              <span class="revenue-value">${{ totalShortRevenue }}B</span>
+              <span class="revenue-value">${{ totalShortRevenue }}M</span>
             </div>
             <div class="cost-row warning-text-small">
               <span>Must buy back later to close position</span>
@@ -369,7 +371,7 @@
           >
             <span class="btn-icon">📉</span>
             <span class="btn-text">Confirm Short</span>
-            <span class="btn-amount">+${{ totalShortRevenue }}B</span>
+            <span class="btn-amount">+${{ totalShortRevenue }}M</span>
           </ion-button>
         </div>
       </ion-content>
@@ -420,7 +422,7 @@
             </div>
             <div class="detail-row total" :class="{ profit: closeProceeds > 0 || (selectedPosition.shares < 0 && closeProceeds < 0 && Math.abs(closeProceeds) < selectedPosition.averageCost * 0.8 * Math.abs(selectedPosition.shares) / 100), loss: closeProceeds < 0 && selectedPosition.shares > 0 }">
               <span>{{ selectedPosition.shares > 0 ? 'Proceeds' : 'Cost to Close' }}</span>
-              <span>{{ closeProceeds >= 0 ? '+' : '' }}${{ Math.abs(closeProceeds) }}B</span>
+              <span>{{ closeProceeds >= 0 ? '+' : '' }}${{ Math.abs(closeProceeds) }}M</span>
             </div>
           </div>
 
@@ -573,7 +575,10 @@ const filteredStocks = computed(() => {
     return gameStore.stocks;
   }
   if (selectedSector.value === 'portfolio') {
-    return gameStore.stocks.filter((s: Stock) => gameStore.portfolio[s.id]?.shares !== 0);
+    return gameStore.stocks.filter((s: Stock) => {
+      const position = gameStore.portfolio[s.id];
+      return position && position.shares !== 0;
+    });
   }
   return gameStore.stocks.filter((s: Stock) => s.sector === selectedSector.value);
 });
@@ -711,10 +716,32 @@ function executeBuy() {
   }
 }
 
+function executeBuyMax(stockId: string) {
+  const stock = gameStore.stocks.find((s: Stock) => s.id === stockId);
+  if (!stock) return;
+
+  // Calculate max shares we can buy with current money (or go into margin)
+  const pricePerShare = stock.currentPrice / 100;
+  const availableMoney = Math.max(gameStore.stats.money, 0) + 500; // Allow up to 500M margin
+  const maxShares = Math.floor(availableMoney / pricePerShare);
+  const sharesToBuy = Math.max(100, Math.floor(maxShares / 100) * 100); // Round to nearest 100
+
+  if (sharesToBuy >= 100) {
+    gameStore.buyStock(stockId, sharesToBuy);
+  }
+}
+
 function executeSell() {
   if (selectedStockId.value) {
     gameStore.sellStock(selectedStockId.value, sellAmount.value);
     showSellModal.value = false;
+  }
+}
+
+function executeSellAll(stockId: string) {
+  const position = gameStore.portfolio[stockId];
+  if (position && position.shares > 0) {
+    gameStore.sellStock(stockId, position.shares);
   }
 }
 
@@ -1316,3 +1343,4 @@ function formatMoney(num: number): string {
   color: #10b981 !important;
 }
 </style>
+

@@ -73,6 +73,8 @@ export interface JuiceMessage {
   isPositive?: boolean;
   hasBeenEngaged?: boolean;
   selectedComment?: string;
+  createdAt?: number; // Timestamp for real-time countdown
+  expiresAt?: number; // When the critical post expires (for real-time countdown)
 }
 
 // Situation system - determines which plan type is ideal this turn

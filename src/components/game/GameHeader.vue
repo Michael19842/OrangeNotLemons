@@ -6,7 +6,7 @@
       <span class="turn-counter">{{ currentTurn }}/{{ maxTurns }}</span>
     </div>
 
-    <div class="timer-container" :class="{ urgent: timeRemaining <= 10, critical: timeRemaining <= 5 }">
+    <div class="timer-container" :class="{ urgent: !isUnlimited && timeRemaining <= 10, critical: !isUnlimited && timeRemaining <= 5, unlimited: isUnlimited }">
       <div class="timer-ring">
         <svg viewBox="0 0 36 36">
           <path
@@ -23,7 +23,7 @@
               a 15.9155 15.9155 0 0 1 0 -31.831"
           />
         </svg>
-        <span class="timer-text">{{ timeRemaining }}</span>
+        <span class="timer-text">{{ timerDisplay }}</span>
       </div>
     </div>
 
@@ -57,11 +57,24 @@ const term = computed(() => gameStore.term);
 const monthName = computed(() => gameStore.monthName);
 const year = computed(() => gameStore.year);
 const timeRemaining = computed(() => gameStore.timeRemaining);
+const turnDuration = computed(() => gameStore.turnDuration);
 const currentScore = computed(() => gameStore.currentScore);
 const highScore = computed(() => gameStore.highScore);
 
+// Is unlimited time mode?
+const isUnlimited = computed(() => turnDuration.value === 0);
+
+// Timer progress based on actual turn duration (or 100% if unlimited)
 const timerProgress = computed(() => {
-  return (timeRemaining.value / 30) * 100;
+  if (isUnlimited.value) return 100;
+  const maxTime = turnDuration.value || 90;
+  return (timeRemaining.value / maxTime) * 100;
+});
+
+// Display text for timer (show infinity symbol if unlimited)
+const timerDisplay = computed(() => {
+  if (isUnlimited.value) return '∞';
+  return timeRemaining.value;
 });
 </script>
 
@@ -157,6 +170,15 @@ const timerProgress = computed(() => {
 
 .timer-container.critical .timer-text {
   color: #ef4444;
+}
+
+.timer-container.unlimited .timer-progress {
+  stroke: #3b82f6;
+}
+
+.timer-container.unlimited .timer-text {
+  color: #3b82f6;
+  font-size: 1.2rem;
 }
 
 .score-info {

@@ -29,6 +29,12 @@ const AUDIO_FILES = {
   notification: '/audio/notification.mp3',
   achievement: '/audio/win.mp3', // Use win sound for achievements
 
+  // Trading sounds
+  buy: '/audio/click.mp3',      // Quick click for buy
+  sell: '/audio/notification.mp3', // Notification for sell
+  tradeProfit: '/audio/win.mp3',   // Win sound for profit
+  tradeLoss: '/audio/lose.mp3',    // Lose sound for loss
+
   // Game over sounds
   victory: '/audio/win.mp3',
   death: '/audio/lose.mp3',

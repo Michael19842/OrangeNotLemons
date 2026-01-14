@@ -509,4 +509,94 @@ export const ECONOMY_PLANS: PlanCard[] = [
       }
     ]
   },
+  {
+    id: 'pressure_fruit_reserve',
+    name: 'Pressure the Banana',
+    emoji: '🍌',
+    category: 'economy',
+    baseCost: 150,
+    revealable: {
+      risk: 'Fruit Reserve independence is... important?',
+      reward: 'Lower interest rates help your debt',
+      timing: 'Immediate political fallout, economic effects unclear',
+      secret: 'The Banana has tenure and can\'t be fired'
+    },
+    revealed: [],
+    outcomes: [
+      {
+        minScore: 70, maxScore: 100,
+        title: 'Strategic Pressure',
+        description: 'The Banana hints at rate cuts. Markets rally! "I respect independence," you tweet.',
+        immediateEffects: { support: 5, loyalty: 10, coinValuation: 15 },
+        delayedEffects: [
+          {
+            turnsDelay: 2,
+            description: 'Fruit Reserve quietly lowers rates by 0.25%',
+            effects: { money: 100, coinValuation: 10 }
+          },
+          {
+            turnsDelay: 4,
+            description: 'Economic data improves, vindicating your "suggestions"',
+            effects: { support: 10, loyalty: 5 }
+          }
+        ]
+      },
+      {
+        minScore: 35, maxScore: 69,
+        title: 'Awkward Pressure',
+        description: 'You publicly criticize the Banana. Markets nervous. The Banana says nothing.',
+        immediateEffects: { loyalty: 5, chaos: 5, coinValuation: -5 },
+        delayedEffects: [
+          {
+            turnsDelay: 2,
+            description: 'Economic experts defend Fruit Reserve independence',
+            effects: { support: -5, chaos: 3 }
+          },
+          {
+            turnsDelay: 3,
+            description: 'The Banana keeps rates unchanged, citing "data"',
+            effects: { chaos: 5, coinValuation: -5 }
+          },
+          {
+            turnsDelay: 6,
+            description: 'Markets realize nothing will change',
+            effects: { support: -5, coinValuation: -5 }
+          }
+        ]
+      },
+      {
+        minScore: -100, maxScore: 34,
+        title: 'Constitutional Crisis',
+        description: 'You threaten to fire the Banana! Legal experts freak out. Markets tank.',
+        immediateEffects: { support: -15, loyalty: -10, chaos: 15, coinValuation: -20 },
+        delayedEffects: [
+          {
+            turnsDelay: 1,
+            description: 'Treasury yields spike as confidence craters',
+            effects: { money: -200, coinValuation: -15, chaos: 10 }
+          },
+          {
+            turnsDelay: 2,
+            description: 'Inner circle begs you to walk it back',
+            effects: { loyalty: -10, support: -10 }
+          },
+          {
+            turnsDelay: 3,
+            description: 'The Banana holds emergency press conference defending independence',
+            effects: { chaos: 10, support: -5 }
+          },
+          {
+            turnsDelay: 5,
+            description: 'Fruit Reserve raises rates in defiance',
+            effects: { money: -150, coinValuation: -10, chaos: 5 }
+          },
+          {
+            turnsDelay: 8,
+            description: 'Economic textbooks updated with "The Banana Incident"',
+            effects: { support: -10, loyalty: -5 }
+          }
+        ]
+      }
+    ]
+  },
 ];

@@ -77,17 +77,17 @@
           <!-- Critical post moderation options -->
           <div v-if="message.isCritical && !message.hasBeenModerated" class="moderation-actions">
             <div class="critical-warning">
-              ⚠️ Critical post! Respond or face consequences in {{ 8 - (gameStore.currentTurn - message.turn) }} turns
+              ⚠️ Critical post! Respond in {{ getRemainingSeconds(message) }}s or face consequences!
             </div>
             <div class="moderation-buttons">
               <button class="mod-btn delete-btn" @click="handleDelete(message)">
-                🗑️<br>Delete<br>(50B)
+                🗑️ Delete (50M)
               </button>
               <button class="mod-btn ban-btn" @click="handleBan(message)">
-                🔨<br>Ban<br>(200B)
+                🔨 Ban (200M)
               </button>
               <button class="mod-btn ignore-btn" @click="handleIgnore(message)">
-                😤<br>Ignore<br>(-5💪📊❤️)
+                😤 Ignore
               </button>
             </div>
           </div>
@@ -135,6 +135,10 @@ const unreadCount = ref(0);
 const lastSeenMessageId = ref<string>('');
 const isAtTop = ref(true);
 const showCommentsFor = ref<string | null>(null);
+
+// Live engagement ticker - updates every 500ms
+const engagementTick = ref(0);
+let engagementTimer: number | null = null;
 
 const messages = computed(() => {
   // Newest first (top), keep critical messages visible
@@ -209,6 +213,15 @@ function isNewPost(message: any): boolean {
   return now - messageTime < 3000;
 }
 
+// Get remaining seconds for critical post countdown (uses engagementTick for reactivity)
+function getRemainingSeconds(message: any): number {
+  // Access engagementTick to make this reactive
+  const _ = engagementTick.value;
+  if (!message.expiresAt) return 10;
+  const remaining = Math.max(0, Math.ceil((message.expiresAt - Date.now()) / 1000));
+  return remaining;
+}
+
 onMounted(() => {
   if (messages.value.length > 0) {
     lastSeenMessageId.value = messages.value[0].id;
@@ -219,9 +232,20 @@ onMounted(() => {
       feedRef.value.scrollTop = 0;
     }
   });
-  
+
   // Check for unmoderated critical posts every turn
   checkCriticalPosts();
+
+  // Start live engagement ticker - updates every 500ms for dynamic feel
+  engagementTimer = window.setInterval(() => {
+    engagementTick.value++;
+  }, 500);
+});
+
+onUnmounted(() => {
+  if (engagementTimer) {
+    clearInterval(engagementTimer);
+  }
 });
 
 function checkCriticalPosts() {
@@ -405,8 +429,8 @@ function hashCode(str: string): number {
   return Math.abs(hash);
 }
 
-// Engagement scales with time elapsed and support stat
-function getEngagement(message: { id: string; turn: number; type: string }) {
+// Engagement scales with time elapsed, support stat, and live tick
+function getEngagement(message: { id: string; turn: number; type: string; createdAt?: number }) {
   const turnsElapsed = Math.max(0, gameStore.currentTurn - message.turn);
   const support = gameStore.stats.support;
   const isPlayer = message.type === 'player';
@@ -414,44 +438,67 @@ function getEngagement(message: { id: string; turn: number; type: string }) {
   // Base multiplier from support (0.5x at 0 support, 2x at 100 support)
   const supportMultiplier = 0.5 + (support / 100) * 1.5;
 
-  // Time multiplier - engagement grows over time (starts small, grows)
-  // New posts start with low engagement
-  const timeMultiplier = Math.min(turnsElapsed + 0.1, 10) / 10;
+  // Calculate seconds since message was created (for real-time growth)
+  const createdAt = message.createdAt || Date.now();
+  const secondsElapsed = Math.max(0, (Date.now() - createdAt) / 1000);
 
-  // Hash for randomness but deterministic
+  // Hash for randomness but deterministic per message
   const hash = hashCode(message.id);
 
-  return { turnsElapsed, supportMultiplier, timeMultiplier, hash, isPlayer };
+  // Use engagementTick to trigger reactivity
+  const tick = engagementTick.value;
+
+  return { turnsElapsed, supportMultiplier, secondsElapsed, hash, isPlayer, tick };
 }
 
-function getCommentCount(message: { id: string; turn: number; type: string }): string {
-  const { turnsElapsed, supportMultiplier, timeMultiplier, hash, isPlayer } = getEngagement(message);
+function getCommentCount(message: { id: string; turn: number; type: string; createdAt?: number }): string {
+  const { supportMultiplier, secondsElapsed, hash, isPlayer } = getEngagement(message);
 
-  // Player posts get more comments
-  const baseComments = isPlayer ? 5 + (hash % 20) : 1 + (hash % 10);
-  const count = Math.floor(baseComments * timeMultiplier * supportMultiplier);
+  // Base comments (minimum starting point)
+  const baseComments = isPlayer ? 3 + (hash % 5) : 1 + (hash % 3);
 
-  if (count === 0) return '0';
+  // Growth rate per second (faster for player posts)
+  const growthRate = isPlayer ? 0.8 : 0.3;
+
+  // Comments grow over time with some randomness
+  const timeGrowth = secondsElapsed * growthRate * (0.8 + (hash % 40) / 100);
+
+  const count = Math.floor((baseComments + timeGrowth) * supportMultiplier);
+
   return count > 999 ? `${(count / 1000).toFixed(1)}K` : String(count);
 }
 
-function getRetweetCount(message: { id: string; turn: number; type: string }): string {
-  const { turnsElapsed, supportMultiplier, timeMultiplier, hash, isPlayer } = getEngagement(message);
+function getRetweetCount(message: { id: string; turn: number; type: string; createdAt?: number }): string {
+  const { supportMultiplier, secondsElapsed, hash, isPlayer } = getEngagement(message);
 
-  const baseRetweets = isPlayer ? 10 + (hash % 50) : 2 + (hash % 20);
-  const count = Math.floor(baseRetweets * timeMultiplier * supportMultiplier);
+  // Base retweets
+  const baseRetweets = isPlayer ? 5 + (hash % 8) : 2 + (hash % 4);
 
-  if (count === 0) return '0';
+  // Growth rate per second
+  const growthRate = isPlayer ? 1.2 : 0.5;
+
+  // Retweets grow over time
+  const timeGrowth = secondsElapsed * growthRate * (0.8 + (hash % 50) / 100);
+
+  const count = Math.floor((baseRetweets + timeGrowth) * supportMultiplier);
+
   return count > 999 ? `${(count / 1000).toFixed(1)}K` : String(count);
 }
 
-function getLikeCount(message: { id: string; turn: number; type: string }): string {
-  const { turnsElapsed, supportMultiplier, timeMultiplier, hash, isPlayer } = getEngagement(message);
+function getLikeCount(message: { id: string; turn: number; type: string; createdAt?: number }): string {
+  const { supportMultiplier, secondsElapsed, hash, isPlayer } = getEngagement(message);
 
-  const baseLikes = isPlayer ? 20 + (hash % 100) : 5 + (hash % 30);
-  const count = Math.floor(baseLikes * timeMultiplier * supportMultiplier);
+  // Base likes (always start with some)
+  const baseLikes = isPlayer ? 10 + (hash % 15) : 3 + (hash % 8);
 
-  if (count === 0) return '0';
+  // Growth rate per second (likes grow fastest)
+  const growthRate = isPlayer ? 2.5 : 1.0;
+
+  // Likes grow over time
+  const timeGrowth = secondsElapsed * growthRate * (0.8 + (hash % 60) / 100);
+
+  const count = Math.floor((baseLikes + timeGrowth) * supportMultiplier);
+
   return count > 999 ? `${(count / 1000).toFixed(1)}K` : String(count);
 }
 
@@ -697,51 +744,37 @@ function getComments(message: { id: string; turn: number; type: string }): Comme
 
 /* Moderation Actions */
 .moderation-actions {
-  margin-top: 12px;
-  padding: 12px;
+  margin-top: 8px;
+  padding: 8px;
   background: rgba(239, 68, 68, 0.1);
-  border: 2px solid rgba(239, 68, 68, 0.4);
-  border-radius: 8px;
-  animation: pulse-critical 2s ease-in-out infinite;
-}
-
-@keyframes pulse-critical {
-  0%, 100% { border-color: rgba(239, 68, 68, 0.4); }
-  50% { border-color: rgba(239, 68, 68, 0.7); }
+  border-radius: 6px;
 }
 
 .critical-warning {
   color: #ef4444;
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   text-align: center;
 }
 
 .moderation-buttons {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .mod-btn {
   flex: 1;
-  min-width: 85px;
-  padding: 8px 10px;
-  font-size: 0.7rem;
+  padding: 6px 8px;
+  font-size: 0.6rem;
   font-weight: 600;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: normal;
+  white-space: nowrap;
   line-height: 1.2;
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
 }
 
 .delete-btn {
@@ -908,42 +941,29 @@ function getComments(message: { id: string; turn: number; type: string }): Comme
 
 .post-situation {
   border-left: 3px solid #f59e0b;
-  background: rgba(245, 158, 11, 0.1);
-  animation: pulse-situation 2s ease-in-out infinite;
-}
-
-@keyframes pulse-situation {
-  0%, 100% { background: rgba(245, 158, 11, 0.1); }
-  50% { background: rgba(245, 158, 11, 0.15); }
+  background: rgba(245, 158, 11, 0.08);
 }
 
 /* Positive Post Engagement */
 .positive-actions {
-  margin-top: 12px;
-  padding: 12px;
-  background: rgba(34, 197, 94, 0.1);
-  border: 2px solid rgba(34, 197, 94, 0.4);
-  border-radius: 8px;
-  animation: pulse-positive 2s ease-in-out infinite;
-}
-
-@keyframes pulse-positive {
-  0%, 100% { border-color: rgba(34, 197, 94, 0.4); }
-  50% { border-color: rgba(34, 197, 94, 0.7); }
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(34, 197, 94, 0.08);
+  border-radius: 6px;
 }
 
 .positive-prompt {
   color: #22c55e;
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
   text-align: center;
 }
 
 .engagement-buttons {
   display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
 .engagement-buttons .engage-btn {

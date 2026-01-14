@@ -2,92 +2,101 @@
   <div
     class="plan-card"
     :class="[`category-${plan.category}`, { selected: isSelected, disabled: !canAfford }]"
-    @click="handleSelect"
   >
+    <!-- Card Header with emoji and category -->
     <div class="card-header">
       <span class="card-emoji">{{ plan.emoji }}</span>
-      <span class="card-category">{{ plan.category }}</span>
+      <div class="header-right">
+        <span class="card-category">{{ plan.category }}</span>
+        <div class="card-cost" :class="{ 'cost-free': adjustedCost === 0 }">
+          <template v-if="adjustedCost === 0">🎁 FREE</template>
+          <template v-else>💰 {{ adjustedCost }}M</template>
+          <span v-if="!canAfford && adjustedCost > 0" class="loan-badge">LOAN</span>
+        </div>
+      </div>
     </div>
 
+    <!-- Plan Title -->
     <h3 class="card-title">{{ plan.name }}</h3>
 
-    <div class="card-cost">
-      <span class="cost-icon">💰</span>
-      <span class="cost-value">{{ adjustedCost }}B</span>
-      <span v-if="adjustedCost !== plan.baseCost" class="cost-adjusted">
-        ({{ adjustedCost > plan.baseCost ? '+' : '' }}{{ Math.round((adjustedCost - plan.baseCost) / plan.baseCost * 100) }}%)
-      </span>
-      <span v-if="!canAfford" class="cost-warning">(Loan!)</span>
-    </div>
-
-    <!-- Random research button -->
-    <button
-      v-if="hasUnrevealedProperties"
-      class="random-research-btn"
-      @click.stop="handleRandomResearch"
-      :disabled="gameStore.stats.money < 50"
-    >
-      🎲 Info 50B
-    </button>
-
-    <div class="card-properties">
+    <!-- Scrollable Content Area -->
+    <div class="card-body">
+      <!-- Properties Section -->
       <div
         v-for="(value, key) in plan.revealable"
         :key="key"
-        class="property"
-        :class="{ revealed: plan.revealed.includes(key as string) }"
+        class="info-row"
+        :class="{ 'info-revealing': isRevealing && plan.revealed.includes(key as string) }"
       >
-        <div v-if="plan.revealed.includes(key as string)" class="property-content">
-          <span class="property-label">{{ formatLabel(key as string) }}:</span>
-          <span class="property-value" :class="getSentimentClass(value)">{{ value }}</span>
+        <div v-if="plan.revealed.includes(key as string)" class="info-revealed">
+          <span class="info-label">{{ formatLabel(key as string) }}:</span>
+          <span class="info-text" :class="getSentimentClass(value)">{{ value }}</span>
         </div>
-        <div v-else class="property-hidden">
-          <span class="hidden-icon">🔒</span>
-          <span class="hidden-text">{{ formatLabel(key as string) }}</span>
+        <div v-else class="info-locked">
+          🔒 {{ formatLabel(key as string) }}
         </div>
       </div>
-      
-      <!-- Market Impact (always shown if exists) -->
-      <div v-if="marketImpact.length > 0" class="property revealed market-impact">
-        <div class="property-content">
-          <span class="property-label">📊 Market Buzz:</span>
-          <div class="market-effects">
-            <div v-for="effect in marketImpact" :key="effect.stockId" class="market-effect">
-              <span class="stock-emoji">{{ effect.emoji }}</span>
-              <span class="stock-name">{{ effect.name }}</span>
-              <span class="stock-hint" :class="getHintClass(effect)">
-                {{ getMarketHint(effect) }}
-              </span>
-              <button
-                v-if="effect.researchLevel < 3"
-                class="research-stock-btn"
-                @click="handleResearchStock(plan.id, effect.stockId, $event)"
-                :disabled="gameStore.stats.money < 25"
-                :title="`Research (25B) - Level ${effect.researchLevel + 1}/3`"
-              >
-                🔍
-              </button>
-              <span v-else class="research-complete">✓</span>
-            </div>
+
+      <!-- Market Impact (compact) with quick trade -->
+      <div v-if="marketImpact.length > 0" class="market-section">
+        <div
+          v-for="effect in marketImpact"
+          :key="effect.stockId"
+          class="stock-row"
+          :class="{ 'stock-revealing': isRevealing && effect.researchLevel > 0 }"
+        >
+          <span class="stock-ticker" :title="effect.name">{{ effect.ticker }}</span>
+          <span class="stock-status" :class="getHintClass(effect)">
+            {{ getMarketHintShort(effect) }}
+          </span>
+          <div class="quick-trade">
+            <button
+              class="trade-btn buy"
+              @click.stop="quickBuy(effect.stockId)"
+              title="Buy"
+            >↑</button>
+            <button
+              class="trade-btn short"
+              @click.stop="quickShort(effect.stockId)"
+              title="Short"
+            >↓</button>
           </div>
         </div>
       </div>
     </div>
 
-    <button
-      v-if="!isSelected"
-      class="select-btn"
-      :disabled="!canAfford && gameStore.debt > 500"
-      @click.stop="handleSelect"
-    >
-      Select Plan
-    </button>
-    <div v-else class="selected-badge">✓ Selected</div>
+    <!-- Fixed Footer Actions - Always Visible -->
+    <div class="card-footer">
+      <button
+        v-if="hasUnrevealedInfo"
+        class="research-btn"
+        @click.stop="handleResearch"
+        :disabled="gameStore.stats.money < researchCost"
+      >
+        🔍 {{ researchCost }}M
+      </button>
+
+      <button
+        v-if="!isSelected"
+        class="select-btn"
+        :disabled="!canAfford && gameStore.debt > 500"
+        @click.stop="handleSelect"
+      >
+        ✓ Select
+      </button>
+      <button
+        v-else
+        class="deselect-btn"
+        @click.stop="handleDeselect"
+      >
+        ✕ Cancel
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useGameStore } from '@/stores/gameStore';
 import { useAudio } from '@/composables/useAudio';
 import type { PlanCard } from '@/types/game';
@@ -103,6 +112,7 @@ const emit = defineEmits<{
 
 const gameStore = useGameStore();
 const { playSound } = useAudio();
+const isRevealing = ref(false);
 
 const isSelected = computed(() => gameStore.selectedPlan?.id === props.plan.id);
 
@@ -116,6 +126,7 @@ const marketImpact = computed(() => {
     return {
       stockId: effect.stockId,
       name: stock?.name || effect.stockId,
+      ticker: stock?.ticker || '???',
       emoji: stock?.emoji || '📊',
       change: effect.change,
       hint: effect.hint,
@@ -128,6 +139,19 @@ const canAfford = computed(() => gameStore.stats.money >= adjustedCost.value);
 const hasUnrevealedProperties = computed(() => {
   const totalProps = Object.keys(props.plan.revealable).length;
   return props.plan.revealed.length < totalProps;
+});
+
+const hasUnresearchedStocks = computed(() => {
+  return marketImpact.value.some(effect => effect.researchLevel < 3);
+});
+
+const hasUnrevealedInfo = computed(() => {
+  return hasUnrevealedProperties.value || hasUnresearchedStocks.value;
+});
+
+const researchCost = computed(() => {
+  // All research costs 25M
+  return 25;
 });
 
 function formatLabel(key: string): string {
@@ -186,6 +210,21 @@ function getMarketHint(effect: { change: number; hint: string; researchLevel: nu
   return '💥 Crash imminent';
 }
 
+// Short version for compact display
+function getMarketHintShort(effect: { change: number; hint: string; researchLevel: number }): string {
+  if (effect.researchLevel === 0) return '❓';
+  if (effect.researchLevel === 1) return '💭 ?';
+  if (effect.researchLevel === 2) return effect.change > 0 ? '📈' : '📉';
+
+  // Level 3: Show with percentage
+  const sign = effect.change > 0 ? '+' : '';
+  if (effect.change >= 15) return `🚀 ${sign}${effect.change}%`;
+  if (effect.change >= 5) return `📈 ${sign}${effect.change}%`;
+  if (effect.change > -5) return `➡️ ${sign}${effect.change}%`;
+  if (effect.change > -15) return `📉 ${effect.change}%`;
+  return `💥 ${effect.change}%`;
+}
+
 function getHintClass(effect: { change: number; researchLevel: number }): string {
   // Unknown level - gray
   if (effect.researchLevel === 0) return 'hint-unknown';
@@ -199,29 +238,62 @@ function getHintClass(effect: { change: number; researchLevel: number }): string
   return 'hint-very-negative';
 }
 
-function handleResearchStock(planId: string, stockId: string, event: Event) {
-  event.stopPropagation();
+function handleResearch() {
+  // Randomly choose between properties and stocks
+  const hasProps = hasUnrevealedProperties.value;
+  const hasStocks = hasUnresearchedStocks.value;
+  
+  if (hasProps && hasStocks) {
+    // Both available - random choice
+    if (Math.random() < 0.5) {
+      handleRandomResearch();
+    } else {
+      handleResearchMarket();
+    }
+  } else if (hasProps) {
+    // Only properties left
+    handleRandomResearch();
+  } else if (hasStocks) {
+    // Only stocks left
+    handleResearchMarket();
+  }
+  
+  // Trigger animation
+  isRevealing.value = true;
+  setTimeout(() => {
+    isRevealing.value = false;
+  }, 600);
+}
+
+function handleResearchMarket() {
   if (gameStore.stats.money < 25) return;
 
-  // Cost 25B to research a stock hint
+  // Find all unresearched stocks and pick random one
+  const unresearched = marketImpact.value.filter(effect => effect.researchLevel < 3);
+  if (unresearched.length === 0) return;
+  
+  // Pick random stock to research
+  const randomStock = unresearched[Math.floor(Math.random() * unresearched.length)];
+
+  // Cost 25M to research
   gameStore.stats.money -= 25;
-  const newLevel = gameStore.researchStock(planId, stockId);
+  const newLevel = gameStore.researchStock(props.plan.id, randomStock.stockId);
   playSound('research');
 
   // Add juice message about the research
   if (newLevel === 1) {
     gameStore.addJuiceMessage({
-      text: `🔍 Market analysts provide a vague hint about potential sector impacts...`,
+      text: `🔍 Insider whispers about ${randomStock.emoji}...`,
       type: 'news'
     });
   } else if (newLevel === 2) {
     gameStore.addJuiceMessage({
-      text: `📊 Deeper analysis reveals the likely direction of market movement...`,
+      text: `📊 The market will ${randomStock.change > 0 ? 'boom' : 'crash'}!`,
       type: 'news'
     });
   } else if (newLevel === 3) {
     gameStore.addJuiceMessage({
-      text: `🎯 Full market intelligence acquired! Expected magnitude now known.`,
+      text: `🎯 Crystal clear: ${randomStock.emoji} ${getMarketHint(randomStock)}`,
       type: 'news'
     });
   }
@@ -234,210 +306,367 @@ function handleSelect() {
   }
 }
 
+function handleDeselect() {
+  playSound('click');
+  gameStore.selectedPlan = null;
+}
+
 function handleRandomResearch() {
-  if (gameStore.stats.money < 50) return;
+  if (gameStore.stats.money < 25) return;
   playSound('research');
   gameStore.researchPlanRandom(props.plan.id);
+}
+
+// Quick trade functions
+const QUICK_TRADE_SHARES = 100; // Buy/short 100 shares at a time
+
+function quickBuy(stockId: string) {
+  const stock = gameStore.stocks.find(s => s.id === stockId);
+  if (!stock) return;
+
+  const cost = Math.ceil((QUICK_TRADE_SHARES * stock.currentPrice) / 100);
+
+  playSound('buy');
+  gameStore.buyStock(stockId, QUICK_TRADE_SHARES);
+
+  gameStore.addJuiceMessage({
+    text: `⚡ Quick buy: ${QUICK_TRADE_SHARES} ${stock.ticker} shares for ${cost}M! #FastMoney`,
+    type: 'news'
+  });
+}
+
+function quickShort(stockId: string) {
+  const stock = gameStore.stocks.find(s => s.id === stockId);
+  if (!stock) return;
+
+  playSound('sell');
+  gameStore.shortStock(stockId, QUICK_TRADE_SHARES);
+
+  gameStore.addJuiceMessage({
+    text: `⚡ Quick short: ${QUICK_TRADE_SHARES} ${stock.ticker} shares! Betting on drop! #BearBet`,
+    type: 'news'
+  });
 }
 </script>
 
 <style scoped>
+/* Card Container - Compact Mobile Design */
 .plan-card {
   background: linear-gradient(145deg, #2a2a3e 0%, #1a1a2e 100%);
   border-radius: 12px;
   padding: 10px;
   border: 2px solid rgba(255, 255, 255, 0.1);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  cursor: pointer;
-  min-width: 140px;
-  max-width: 160px;
+  border-top-width: 4px;
+  transition: all 0.2s ease;
+  width: 155px;
+  min-height: 200px;
+  max-height: 320px;
   flex-shrink: 0;
-}
-
-.plan-card:hover:not(.disabled) {
-  border-color: rgba(255, 107, 53, 0.5);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .plan-card.selected {
   border-color: #ff6b35;
-  box-shadow: 0 0 20px rgba(255, 107, 53, 0.4);
+  box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
 }
 
 .plan-card.disabled {
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
-/* Category colors */
-.plan-card.category-economy { border-top: 3px solid #22c55e; }
-.plan-card.category-politics { border-top: 3px solid #3b82f6; }
-.plan-card.category-media { border-top: 3px solid #a855f7; }
-.plan-card.category-foreign { border-top: 3px solid #f59e0b; }
-.plan-card.category-personal { border-top: 3px solid #ec4899; }
+/* Category Border Colors */
+.plan-card.category-economy { border-top-color: #22c55e; }
+.plan-card.category-politics { border-top-color: #3b82f6; }
+.plan-card.category-media { border-top-color: #a855f7; }
+.plan-card.category-foreign { border-top-color: #f59e0b; }
+.plan-card.category-personal { border-top-color: #ec4899; }
 
+/* Header - Compact */
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
 .card-emoji {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
 }
 
 .card-category {
-  font-size: 0.6rem;
+  font-size: 0.55rem;
   text-transform: uppercase;
-  padding: 2px 6px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #888;
-}
-
-.card-title {
-  font-size: 0.9rem;
-  font-weight: bold;
-  margin: 0 0 8px 0;
-  color: white;
-  line-height: 1.2;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #94a3b8;
 }
 
 .card-cost {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-bottom: 8px;
-  padding: 4px 8px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  font-size: 0.8rem;
-}
-
-.cost-value {
-  color: #22c55e;
-  font-weight: bold;
-}
-
-.cost-warning {
-  color: #ef4444;
-  font-size: 0.65rem;
-}
-
-.cost-adjusted {
-  color: #f59e0b;
-  font-size: 0.6rem;
-}
-
-.random-research-btn {
-  width: 100%;
-  padding: 6px;
-  margin-bottom: 8px;
-  border: 2px dashed rgba(255, 107, 53, 0.5);
+  gap: 3px;
+  padding: 2px 6px;
+  background: rgba(34, 197, 94, 0.2);
   border-radius: 6px;
-  background: rgba(255, 107, 53, 0.1);
-  color: #ff6b35;
   font-size: 0.7rem;
+  font-weight: 700;
+  color: #22c55e;
+}
+
+.card-cost.cost-free {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+.loan-badge {
+  font-size: 0.5rem;
+  background: #ef4444;
+  color: white;
+  padding: 1px 3px;
+  border-radius: 3px;
+  font-weight: 700;
+}
+
+/* Title - Compact */
+.card-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  color: #fff;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Body - Scrollable Content */
+.card-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 40px;
+  max-height: 120px;
+  margin-bottom: 6px;
+}
+
+.card-body::-webkit-scrollbar {
+  width: 2px;
+}
+
+.card-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 107, 53, 0.4);
+  border-radius: 2px;
+}
+
+/* Info Rows - Compact */
+.info-row {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 5px;
+  padding: 4px 6px;
+  transition: all 0.3s ease;
+}
+
+.info-row.info-revealing {
+  animation: reveal-flash 0.5s ease;
+}
+
+@keyframes reveal-flash {
+  0%, 100% { background: rgba(0, 0, 0, 0.3); }
+  50% { background: rgba(34, 197, 94, 0.4); }
+}
+
+.info-revealed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  align-items: baseline;
+}
+
+.info-label {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.info-text {
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: #e2e8f0;
+  line-height: 1.2;
+}
+
+.info-text.sentiment-positive { color: #4ade80; }
+.info-text.sentiment-negative { color: #f87171; }
+.info-text.sentiment-neutral { color: #fbbf24; }
+
+.info-locked {
+  font-size: 0.6rem;
   font-weight: 600;
+  color: #64748b;
+  text-align: center;
+}
+
+/* Market Section - Horizontal Compact */
+.market-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 5px;
+  padding: 4px;
+}
+
+.stock-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.stock-row.stock-revealing {
+  animation: stock-reveal 0.5s ease;
+}
+
+@keyframes stock-reveal {
+  0%, 100% { background: rgba(0, 0, 0, 0.2); }
+  50% { background: rgba(59, 130, 246, 0.4); }
+}
+
+.stock-ticker {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: #60a5fa;
+  font-family: monospace;
+  background: rgba(59, 130, 246, 0.15);
+  padding: 1px 3px;
+  border-radius: 2px;
+  letter-spacing: 0.5px;
+}
+
+.stock-status {
+  font-size: 0.55rem;
+  font-weight: 600;
+  flex: 1;
+}
+
+.quick-trade {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.trade-btn {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.trade-btn.buy {
+  background: rgba(34, 197, 94, 0.3);
+  color: #22c55e;
+}
+
+.trade-btn.buy:active {
+  background: rgba(34, 197, 94, 0.6);
+  transform: scale(0.95);
+}
+
+.trade-btn.short {
+  background: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.trade-btn.short:active {
+  background: rgba(239, 68, 68, 0.6);
+  transform: scale(0.95);
+}
+
+/* Stock Status Colors */
+.hint-very-positive { color: #22c55e; }
+.hint-positive { color: #86efac; }
+.hint-neutral { color: #94a3b8; }
+.hint-negative { color: #fca5a5; }
+.hint-very-negative { color: #ef4444; }
+.hint-unknown { color: #64748b; }
+.hint-vague { color: #fbbf24; }
+
+/* Footer - Always Visible */
+.card-footer {
+  display: flex;
+  gap: 4px;
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+.research-btn {
+  flex: 1;
+  padding: 8px 4px;
+  border: 1px solid rgba(59, 130, 246, 0.6);
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  font-size: 0.65rem;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.random-research-btn:hover:not(:disabled) {
-  background: rgba(255, 107, 53, 0.2);
-  border-color: rgba(255, 107, 53, 0.8);
-  transform: translateY(-1px);
+.research-btn:active:not(:disabled) {
+  background: rgba(59, 130, 246, 0.4);
+  transform: scale(0.98);
 }
 
-.random-research-btn:disabled {
+.research-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.card-properties {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 8px;
-}
-
-.property {
-  font-size: 0.7rem;
-  padding: 4px 6px;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.property.revealed {
-  background: rgba(34, 197, 94, 0.15);
-}
-
-.property-content {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.property-label {
-  color: #888;
-  font-size: 0.6rem;
-  text-transform: uppercase;
-}
-
-.property-value {
-  color: white;
-  font-weight: 500;
-}
-
-.property-value.sentiment-positive {
-  color: #22c55e;
-}
-
-.property-value.sentiment-negative {
-  color: #ef4444;
-}
-
-.property-value.sentiment-neutral {
-  color: #f59e0b;
-}
-
-.property-hidden {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 24px;
-  overflow: hidden;
-}
-
-.hidden-icon {
-  opacity: 0.5;
-  flex-shrink: 0;
-}
-
-.hidden-text {
-  color: #666;
-  flex: 1;
-  font-size: 0.6rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .select-btn {
-  width: 100%;
-  padding: 8px;
+  flex: 1.5;
+  padding: 8px 6px;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
   color: white;
-  font-weight: bold;
-  font-size: 0.8rem;
+  font-weight: 700;
+  font-size: 0.7rem;
   cursor: pointer;
-  transition: box-shadow 0.2s ease;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
 }
 
-.select-btn:hover:not(:disabled) {
-  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+.select-btn:active:not(:disabled) {
+  transform: scale(0.98);
+  box-shadow: 0 1px 4px rgba(255, 107, 53, 0.3);
 }
 
 .select-btn:disabled {
@@ -445,110 +674,21 @@ function handleRandomResearch() {
   cursor: not-allowed;
 }
 
-.selected-badge {
-  text-align: center;
-  padding: 8px;
-  background: rgba(255, 107, 53, 0.2);
-  border-radius: 8px;
-  color: #ff6b35;
-  font-weight: bold;
-  font-size: 0.8rem;
-}
-
-.market-impact {
-  margin-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding-top: 8px;
-}
-
-.market-effects {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 4px;
-}
-
-.market-effect {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  padding: 4px 6px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-}
-
-.stock-emoji {
-  font-size: 0.9rem;
-}
-
-.stock-name {
-  flex: 1;
-  color: #cbd5e1;
-  font-size: 0.7rem;
-}
-
-.stock-hint {
-  font-weight: 600;
-  font-size: 0.7rem;
-  font-style: italic;
-}
-
-.hint-very-positive {
-  color: #22c55e;
-}
-
-.hint-positive {
-  color: #86efac;
-}
-
-.hint-neutral {
-  color: #94a3b8;
-}
-
-.hint-negative {
-  color: #fca5a5;
-}
-
-.hint-very-negative {
+.deselect-btn {
+  flex: 1.5;
+  padding: 8px 6px;
+  border: 1px solid #ef4444;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.2);
   color: #ef4444;
-}
-
-.hint-unknown {
-  color: #64748b;
-  opacity: 0.8;
-}
-
-.hint-vague {
-  color: #fbbf24;
-  opacity: 0.9;
-}
-
-.research-stock-btn {
-  padding: 2px 6px;
-  border: 1px solid rgba(255, 107, 53, 0.5);
-  border-radius: 4px;
-  background: rgba(255, 107, 53, 0.15);
+  font-weight: 700;
   font-size: 0.7rem;
   cursor: pointer;
   transition: all 0.2s ease;
-  flex-shrink: 0;
 }
 
-.research-stock-btn:hover:not(:disabled) {
-  background: rgba(255, 107, 53, 0.3);
-  border-color: rgba(255, 107, 53, 0.8);
-  transform: scale(1.1);
-}
-
-.research-stock-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.research-complete {
-  color: #22c55e;
-  font-size: 0.8rem;
-  flex-shrink: 0;
+.deselect-btn:active {
+  background: rgba(239, 68, 68, 0.4);
+  transform: scale(0.98);
 }
 </style>

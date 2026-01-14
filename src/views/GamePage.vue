@@ -95,30 +95,31 @@
         </div>
       </div>
 
-      <!-- Fixed Action Buttons -->
-      <div class="action-section-fixed">
-        <div class="action-buttons-wrapper">
-          <button 
-            class="action-btn plan-btn" 
-            @click="openPlanSelector"
-            :class="{ 'plan-urgent': shouldHighlightPlan }"
-          >
-            🃏 Plan
-            <span v-if="shouldHighlightPlan" class="plan-badge urgent">!</span>
-          </button>
-          <button 
-            class="action-btn rant-btn" 
-            @click="openRantModal"
-            :class="{ 'rant-urgent': shouldPromptRant, 'rant-free': hasFreeBots }"
-          >
-            📢 Rant
-            <span v-if="hasFreeBots" class="rant-badge">FREE</span>
-            <span v-else-if="shouldPromptRant" class="rant-badge urgent">!</span>
-          </button>
-          <button class="action-btn skip-btn" @click="skipTurn" :disabled="selectedPlan !== null">
-            ⛳ Go Golf
-          </button>
-        </div>
+      <!-- Fixed Navigation Bar -->
+      <div class="nav-bar-fixed">
+        <button
+          class="nav-btn"
+          @click="openPlanSelector"
+          :class="{ 'nav-urgent': shouldHighlightPlan }"
+        >
+          <span class="nav-icon">🃏</span>
+          <span class="nav-label">Plan</span>
+          <span v-if="shouldHighlightPlan" class="nav-badge">!</span>
+        </button>
+        <button
+          class="nav-btn"
+          @click="openRantModal"
+          :class="{ 'nav-urgent': shouldPromptRant, 'nav-free': hasFreeBots }"
+        >
+          <span class="nav-icon">📢</span>
+          <span class="nav-label">Rant</span>
+          <span v-if="hasFreeBots" class="nav-badge free">FREE</span>
+          <span v-else-if="shouldPromptRant" class="nav-badge">!</span>
+        </button>
+        <button class="nav-btn" @click="openSkipConfirmation" :disabled="selectedPlan !== null">
+          <span class="nav-icon">⛳</span>
+          <span class="nav-label">Golf</span>
+        </button>
       </div>
 
       <!-- Rant Modal -->
@@ -167,7 +168,7 @@
           <div class="bot-section">
             <div class="bot-header">
               <span class="bot-title">🤖 Boost Engagement</span>
-              <span class="bot-cost" v-if="!hasFreeBots">25B per 10K bots</span>
+              <span class="bot-cost" v-if="!hasFreeBots">25M per 10K bots</span>
               <span class="bot-cost free" v-else>FREE TODAY!</span>
             </div>
             
@@ -233,12 +234,13 @@
         <div class="bottom-sheet" @click.stop>
           <div class="sheet-handle"></div>
           <div class="sheet-header">
-            <h3 class="sheet-title">Choose Your Plan</h3>
+            <div class="sheet-title-row">
+              <span class="sheet-icon">🃏</span>
+              <span class="sheet-title">Plans</span>
+              <span class="sheet-hint">Swipe → Research 🔍 or Select ✓</span>
+            </div>
             <button class="close-sheet-btn" @click="showPlanSelector = false">✕</button>
           </div>
-          <p class="sheet-hint">
-            Tap ❤️ or 💰 to research hidden properties. Swipe to see more cards →
-          </p>
           <div class="plans-grid-wrapper">
             <div class="plans-grid">
               <PlanCard
@@ -253,11 +255,76 @@
       </div>
 
       <!-- Slot Machine Bottom Sheet -->
-      <div v-if="selectedPlan" class="bottom-sheet-overlay slot-overlay">
+      <div v-if="selectedPlan && showSlotConfirmation" class="bottom-sheet-overlay">
+        <div class="bottom-sheet confirmation-sheet" @click.stop>
+          <div class="sheet-handle"></div>
+          <div class="confirmation-content">
+            <div class="confirmation-icon">🎰</div>
+            <h3 class="confirmation-title">Execute Plan?</h3>
+            <div class="selected-plan-summary">
+              <div class="plan-emoji-large">{{ selectedPlan.emoji }}</div>
+              <div class="plan-name-large">{{ selectedPlan.name }}</div>
+              <div class="plan-cost-large">
+                💰 {{ gameStore.getAdjustedCost(selectedPlan.baseCost) }}B
+              </div>
+            </div>
+            <p class="confirmation-warning">
+              ⚠️ This will spin the slot machine and apply the plan's effects!
+            </p>
+            <div class="confirmation-actions">
+              <button class="cancel-plan-btn" @click="cancelPlan">
+                ✕ Cancel
+              </button>
+              <button class="execute-plan-btn" @click="executePlan">
+                🎰 Let's Go!
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slot Machine (after confirmation) -->
+      <div v-if="selectedPlan && !showSlotConfirmation" class="bottom-sheet-overlay slot-overlay">
         <div class="bottom-sheet slot-sheet" @click.stop>
           <div class="sheet-handle"></div>
           <div class="slot-container">
             <SlotMachine />
+          </div>
+        </div>
+      </div>
+
+      <!-- Skip Turn Confirmation -->
+      <div v-if="showSkipConfirmation" class="bottom-sheet-overlay">
+        <div class="bottom-sheet confirmation-sheet" @click.stop>
+          <div class="sheet-handle"></div>
+          <div class="confirmation-content">
+            <div class="confirmation-icon">⛳</div>
+            <h3 class="confirmation-title">Go Golfing?</h3>
+            <div class="skip-summary">
+              <div class="skip-effect positive">
+                <span class="effect-icon">❤️</span>
+                <span class="effect-text">+15 Health</span>
+              </div>
+              <div class="skip-effect negative">
+                <span class="effect-icon">👥</span>
+                <span class="effect-text">-2 Loyalty</span>
+              </div>
+              <div class="skip-effect negative">
+                <span class="effect-icon">📊</span>
+                <span class="effect-text">-2 Support</span>
+              </div>
+            </div>
+            <p class="confirmation-warning">
+              ⚠️ You'll skip this turn and go relax on the golf course!
+            </p>
+            <div class="confirmation-actions">
+              <button class="cancel-plan-btn" @click="showSkipConfirmation = false">
+                ✕ Stay
+              </button>
+              <button class="execute-plan-btn" @click="confirmSkipTurn">
+                ⛳ Go Golf!
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -300,6 +367,8 @@ const lastReadJuiceCount = ref(0);
 const tutorialRef = ref<InstanceType<typeof TutorialModal> | null>(null);
 const isTutorialMode = ref(false);
 const showExitConfirm = ref(false);
+const showSlotConfirmation = ref(false);
+const showSkipConfirmation = ref(false);
 
 import { useRoute, useRouter } from 'vue-router';
 const route = useRoute();
@@ -511,11 +580,25 @@ function selectPlanAndClose(plan: PlanCardType) {
   playSound('click');
   gameStore.selectPlan(plan);
   showPlanSelector.value = false;
+  showSlotConfirmation.value = true;
 
   // Notify tutorial
   if (isTutorialMode.value) {
     tutorialRef.value?.handleTutorialEvent('plan-selected');
   }
+}
+
+function cancelPlan() {
+  playSound('click');
+  gameStore.selectedPlan = null;
+  showSlotConfirmation.value = false;
+  showPlanSelector.value = true;
+}
+
+function executePlan() {
+  playSound('spin');
+  showSlotConfirmation.value = false;
+  // Slot machine will now show
 }
 
 function postRant() {
@@ -564,8 +647,14 @@ function postRant() {
   showRantModal.value = false;
 }
 
-function skipTurn() {
+function openSkipConfirmation() {
   playSound('click');
+  showSkipConfirmation.value = true;
+}
+
+function confirmSkipTurn() {
+  playSound('click');
+  showSkipConfirmation.value = false;
   gameStore.stopTimer();
   gameStore.skipTurn();
 }
@@ -717,7 +806,7 @@ onUnmounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding-bottom: 120px; /* Space for bottom action buttons */
+  padding-bottom: 80px; /* Space for bottom navigation bar */
   overflow-y: auto;
 }
 
@@ -757,169 +846,115 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-.action-section-fixed {
+/* Navigation Bar */
+.nav-bar-fixed {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 12px;
-  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, 
-    transparent 0%, 
-    rgba(26, 26, 46, 0.7) 15%,
-    rgba(26, 26, 46, 0.95) 30%,
-    #1a1a2e 50%);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 100;
-  pointer-events: none;
-}
-
-.action-buttons-wrapper {
   display: flex;
-  gap: 8px;
-  justify-content: space-between;
-  background: linear-gradient(145deg, #1a1a2e 0%, #0f0f1a 100%);
-  border: 2px solid rgba(255, 107, 53, 0.3);
-  border-radius: 16px;
-  padding: 12px;
-  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 107, 53, 0.2);
-  pointer-events: all;
+  justify-content: space-around;
+  align-items: stretch;
+  background: rgba(15, 15, 26, 0.98);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px 0;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 20px));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 100;
 }
 
-.action-buttons-wrapper .action-btn {
+.nav-btn {
   flex: 1;
-  padding: 14px 8px;
-  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: #71767b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
 }
 
-.action-btn:disabled {
-  opacity: 0.4;
+.nav-btn:active {
+  transform: scale(0.95);
+}
+
+.nav-btn:disabled {
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
-.action-btn {
-  width: 100%;
-  padding: 16px;
-  font-size: 1.1rem;
-  font-weight: 700;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+.nav-icon {
+  font-size: 1.4rem;
+  line-height: 1;
 }
 
-.plan-btn {
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-  color: white;
-  box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4);
-  position: relative;
-}
-
-.plan-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 30px rgba(255, 107, 53, 0.6);
-}
-
-.plan-btn.plan-urgent {
-  animation: pulse-plan-urgent 1.5s ease-in-out infinite;
-  background: linear-gradient(135deg, #fbbf24 0%, #ff6b35 100%);
-}
-
-@keyframes pulse-plan-urgent {
-  0%, 100% { 
-    box-shadow: 0 4px 20px rgba(251, 191, 36, 0.5);
-    transform: scale(1);
-  }
-  50% { 
-    box-shadow: 0 6px 35px rgba(251, 191, 36, 0.9);
-    transform: scale(1.05);
-  }
-}
-
-.plan-badge {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  color: white;
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 3px 6px;
-  border-radius: 50%;
-  min-width: 20px;
-  text-align: center;
-  box-shadow: 0 2px 10px rgba(251, 191, 36, 0.8);
-  animation: badge-bounce 0.6s ease-in-out infinite;
-}
-
-@keyframes badge-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
-}
-
-.rant-btn {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: white;
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
-  position: relative;
-}
-
-.rant-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 30px rgba(59, 130, 246, 0.6);
-}
-
-.rant-btn.rant-urgent {
-  animation: pulse-urgent 2s ease-in-out infinite;
-}
-
-.rant-btn.rant-free {
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4);
-}
-
-@keyframes pulse-urgent {
-  0%, 100% { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4); }
-  50% { box-shadow: 0 4px 30px rgba(239, 68, 68, 0.8); }
-}
-
-.rant-badge {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  background: #22c55e;
-  color: white;
+.nav-label {
   font-size: 0.65rem;
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-weight: 700;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.rant-badge.urgent {
-  background: #ef4444;
-  animation: pulse-badge-urgent 1.5s ease-in-out infinite;
+/* Active/hover states */
+.nav-btn:not(:disabled):hover {
+  color: #ff6b35;
 }
 
-@keyframes pulse-badge-urgent {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.2); }
+.nav-btn:not(:disabled):hover .nav-icon {
+  transform: translateY(-2px);
 }
 
-.skip-btn {
-  background: rgba(34, 197, 94, 0.15);
-  border: 2px solid rgba(34, 197, 94, 0.4);
+/* Urgent state */
+.nav-btn.nav-urgent {
+  color: #fbbf24;
+  animation: nav-pulse 1.5s ease-in-out infinite;
+}
+
+.nav-btn.nav-urgent .nav-icon {
+  animation: nav-bounce 0.6s ease-in-out infinite;
+}
+
+@keyframes nav-pulse {
+  0%, 100% { color: #fbbf24; }
+  50% { color: #ff6b35; }
+}
+
+@keyframes nav-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* Free rant state */
+.nav-btn.nav-free {
   color: #22c55e;
 }
 
-.skip-btn:hover {
-  background: rgba(34, 197, 94, 0.25);
-  border-color: rgba(34, 197, 94, 0.6);
+/* Badge */
+.nav-badge {
+  position: absolute;
+  top: 2px;
+  right: 50%;
+  transform: translateX(calc(50% + 12px));
+  background: #ef4444;
+  color: white;
+  font-size: 0.55rem;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 8px;
+  min-width: 14px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.5);
+}
+
+.nav-badge.free {
+  background: #22c55e;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.5);
 }
 
 .slot-phase {
@@ -969,13 +1004,14 @@ onUnmounted(() => {
 
 .bottom-sheet {
   width: 100%;
-  max-height: 70vh;
+  max-height: 60vh;
   background: #1a1a2e;
-  border-radius: 20px 20px 0 0;
-  padding: 16px;
+  border-radius: 16px 16px 0 0;
+  padding: 12px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 32px));
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   animation: slideUp 0.3s ease;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
 }
@@ -990,59 +1026,74 @@ onUnmounted(() => {
 }
 
 .sheet-handle {
-  width: 40px;
-  height: 4px;
-  background: #666;
+  width: 32px;
+  height: 3px;
+  background: #555;
   border-radius: 2px;
-  margin: 0 auto 8px;
+  margin: 0 auto 6px;
 }
 
 .sheet-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.sheet-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.sheet-icon {
+  font-size: 1.1rem;
 }
 
 .sheet-title {
-  font-size: 1.2rem;
+  font-size: 0.95rem;
   color: #ff6b35;
-  margin: 0;
   font-weight: 700;
+  white-space: nowrap;
+}
+
+.sheet-hint {
+  font-size: 0.6rem;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .close-sheet-btn {
-  background: none;
+  background: rgba(255, 255, 255, 0.1);
   border: none;
   color: #888;
-  font-size: 1.8rem;
+  font-size: 1.2rem;
   cursor: pointer;
   padding: 0;
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
-.close-sheet-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+.close-sheet-btn:active {
+  background: rgba(255, 255, 255, 0.2);
   color: #fff;
-}
-
-.sheet-hint {
-  font-size: 0.75rem;
-  color: #888;
-  text-align: center;
-  margin: 0;
 }
 
 .plans-grid-wrapper {
   position: relative;
-  margin: 0 -16px;
-  padding: 0 16px;
+  margin: 0 -12px;
+  padding: 0 12px;
+  flex: 1;
+  min-height: 0;
 }
 
 .plans-grid-wrapper::after {
@@ -1051,7 +1102,7 @@ onUnmounted(() => {
   right: 0;
   top: 0;
   bottom: 0;
-  width: 40px;
+  width: 30px;
   background: linear-gradient(to left, #1a1a2e 0%, transparent 100%);
   pointer-events: none;
   z-index: 1;
@@ -1059,14 +1110,17 @@ onUnmounted(() => {
 
 .plans-grid {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 8px 4px;
+  padding: 4px;
+  padding-right: 30px;
   flex-wrap: nowrap;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x mandatory;
-  scroll-padding: 8px;
+  scroll-padding: 4px;
+  height: 100%;
+  align-items: stretch;
 }
 
 .plans-grid > * {
@@ -1074,11 +1128,11 @@ onUnmounted(() => {
 }
 
 .plans-grid::-webkit-scrollbar {
-  height: 4px;
+  height: 3px;
 }
 
 .plans-grid::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 2px;
 }
 
@@ -1099,6 +1153,7 @@ onUnmounted(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 24px));
 }
 
 .slot-container {
@@ -1313,26 +1368,26 @@ onUnmounted(() => {
 .bot-section {
   background: rgba(255, 107, 53, 0.1);
   border: 2px solid rgba(255, 107, 53, 0.3);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 12px;
 }
 
 .bot-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .bot-title {
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: #ff6b35;
 }
 
 .bot-cost {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: #888;
 }
 
@@ -1351,18 +1406,18 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 20px;
-  margin-bottom: 16px;
+  gap: 16px;
+  margin-bottom: 10px;
 }
 
 .bot-btn {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   border: 2px solid #ff6b35;
   background: rgba(255, 107, 53, 0.2);
   color: #ff6b35;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1385,34 +1440,34 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 100px;
+  min-width: 80px;
 }
 
 .bot-count {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #ff6b35;
 }
 
 .bot-sublabel {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #888;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 }
 
 .bot-info {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.9rem;
-  padding: 6px 0;
+  font-size: 0.8rem;
+  padding: 4px 0;
 }
 
 .info-row span:first-child {
@@ -1434,10 +1489,10 @@ onUnmounted(() => {
 
 .info-row.warning {
   background: rgba(251, 191, 36, 0.1);
-  padding: 8px 12px !important;
+  padding: 6px 10px !important;
   border-radius: 6px;
   border: 1px solid rgba(251, 191, 36, 0.3);
-  margin: 4px 0;
+  margin: 2px 0;
 }
 
 .debt-value {
@@ -1447,13 +1502,13 @@ onUnmounted(() => {
 
 .boost {
   border-top: 1px solid rgba(255, 107, 53, 0.3);
-  padding-top: 12px !important;
-  margin-top: 4px;
+  padding-top: 8px !important;
+  margin-top: 2px;
 }
 
 .boost-value {
   color: #4ade80 !important;
-  font-size: 1.1rem !important;
+  font-size: 0.95rem !important;
 }
 
 .modal-footer {
@@ -1555,5 +1610,144 @@ onUnmounted(() => {
 .leave-btn:hover {
   background: rgba(239, 68, 68, 0.2);
   border-color: rgba(239, 68, 68, 0.6);
+}
+
+/* Confirmation Sheet */
+.confirmation-sheet {
+  max-height: 70vh;
+}
+
+.confirmation-content {
+  text-align: center;
+  padding: 12px;
+}
+
+.confirmation-icon {
+  font-size: 4rem;
+  margin-bottom: 16px;
+  animation: spin-once 0.6s ease-out;
+}
+
+@keyframes spin-once {
+  from { transform: rotate(0deg) scale(0.5); opacity: 0; }
+  to { transform: rotate(360deg) scale(1); opacity: 1; }
+}
+
+.confirmation-title {
+  color: #ff6b35;
+  font-size: 1.5rem;
+  margin: 0 0 16px 0;
+  font-weight: 700;
+}
+
+.selected-plan-summary {
+  background: rgba(255, 107, 53, 0.15);
+  border: 2px solid rgba(255, 107, 53, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.plan-emoji-large {
+  font-size: 3rem;
+  margin-bottom: 8px;
+}
+
+.plan-name-large {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 8px;
+}
+
+.plan-cost-large {
+  font-size: 1rem;
+  color: #22c55e;
+  font-weight: 600;
+}
+
+.skip-summary {
+  background: rgba(15, 23, 42, 0.8);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skip-effect {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.skip-effect.positive {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.skip-effect.negative {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.skip-effect .effect-icon {
+  font-size: 1.5rem;
+}
+
+.skip-effect .effect-text {
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+}
+
+.confirmation-warning {
+  color: #fbbf24;
+  font-size: 0.9rem;
+  margin: 0 0 20px 0;
+  line-height: 1.4;
+}
+
+.confirmation-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.cancel-plan-btn,
+.execute-plan-btn {
+  flex: 1;
+  padding: 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-plan-btn {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 2px solid rgba(239, 68, 68, 0.4);
+}
+
+.cancel-plan-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.6);
+  transform: translateY(-2px);
+}
+
+.execute-plan-btn {
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+}
+
+.execute-plan-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 53, 0.6);
 }
 </style>

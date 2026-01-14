@@ -20,12 +20,16 @@
         <div class="summary-item">
           <span class="summary-label">Net Worth</span>
           <span class="summary-value" :class="{ positive: netWorth > 0, negative: netWorth < 0 }">
-            {{ netWorth }}B
+            {{ netWorth }}M
           </span>
         </div>
         <div class="summary-item">
+          <span class="summary-label">Interest Rate</span>
+          <span class="summary-value warning">{{ baseInterestRate }}%</span>
+        </div>
+        <div class="summary-item">
           <span class="summary-label">Effective Rate</span>
-          <span class="summary-value warning">{{ effectiveRate }}%</span>
+          <span class="summary-value danger">{{ effectiveRate }}%</span>
         </div>
         <div class="summary-item">
           <span class="summary-label">Cost Modifier</span>
@@ -65,7 +69,7 @@
         <div class="chart-header">
           <span class="chart-title">💰 Treasury</span>
           <span class="chart-value" :class="{ positive: latestMoney > 0, negative: latestMoney < 0 }">
-            {{ latestMoney }}B
+            {{ latestMoney }}M
           </span>
         </div>
         <svg class="chart" viewBox="0 0 200 60" preserveAspectRatio="none">
@@ -85,7 +89,7 @@
       <div class="chart-card">
         <div class="chart-header">
           <span class="chart-title">🏦 Debt</span>
-          <span class="chart-value negative">{{ latestDebt }}B</span>
+          <span class="chart-value negative">{{ latestDebt }}M</span>
         </div>
         <svg class="chart" viewBox="0 0 200 60" preserveAspectRatio="none">
           <path :d="debtPath" class="chart-line debt-line" />
@@ -106,18 +110,25 @@
         </svg>
       </div>
 
-      <!-- Chaos vs Interest Chart -->
-      <div class="chart-card wide">
+      <!-- Interest Rate Chart -->
+      <div class="chart-card">
         <div class="chart-header">
-          <span class="chart-title">🌀 Chaos & Interest</span>
-          <div class="legend">
-            <span class="legend-item chaos">🌀 {{ latestChaos }}%</span>
-            <span class="legend-item interest">📊 {{ (latestInterest * 100).toFixed(1) }}%</span>
-          </div>
+          <span class="chart-title">📊 Interest Rate</span>
+          <span class="chart-value danger">{{ (latestInterest * 100).toFixed(1) }}%</span>
+        </div>
+        <svg class="chart" viewBox="0 0 200 60" preserveAspectRatio="none">
+          <path :d="interestPath" class="chart-line interest-line" />
+        </svg>
+      </div>
+
+      <!-- Chaos Chart -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <span class="chart-title">🌀 Chaos</span>
+          <span class="chart-value warning">{{ latestChaos }}%</span>
         </div>
         <svg class="chart" viewBox="0 0 200 60" preserveAspectRatio="none">
           <path :d="chaosPath" class="chart-line chaos-line" />
-          <path :d="interestPath" class="chart-line interest-line" />
         </svg>
       </div>
     </div>
@@ -153,6 +164,7 @@ const latestInterest = computed(() => gameStore.interestRate);
 
 // Calculated values
 const netWorth = computed(() => gameStore.stats.money - gameStore.debt);
+const baseInterestRate = computed(() => (gameStore.interestRate * 100).toFixed(1));
 const effectiveRate = computed(() => {
   const chaos = gameStore.stats.chaos;
   const coinVal = gameStore.stats.coinValuation;
@@ -518,8 +530,8 @@ const worthForecastText = computed(() => {
 
 .summary-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
 }
 
 .summary-item {
@@ -547,6 +559,7 @@ const worthForecastText = computed(() => {
 .summary-value.positive { color: #22c55e; }
 .summary-value.negative { color: #ef4444; }
 .summary-value.warning { color: #eab308; }
+.summary-value.danger { color: #ef4444; font-weight: 700; }
 
 /* Forecast Card */
 .forecast-card {

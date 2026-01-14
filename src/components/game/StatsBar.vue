@@ -10,11 +10,13 @@
         <span class="stat-value">{{ stats.health }}</span>
       </div>
 
-      <div class="stat-item money" :class="{ danger: stats.money < 0 }">
+      <div class="stat-item money" :class="moneyClass">
         <span class="stat-icon">💰</span>
         <span class="stat-value money-value" :class="{ negative: stats.money < 0 }">
-          {{ formatBillions(stats.money) }}B
+          {{ formatMillions(stats.money) }}
         </span>
+        <span v-if="isOverMax" class="debt-crisis-badge">!</span>
+        <span v-else-if="isNearMax" class="debt-warning-badge">⚠</span>
       </div>
 
       <div class="stat-item" :class="{ danger: stats.loyalty < 30, warning: stats.loyalty < 50 }">
@@ -45,11 +47,26 @@ const gameStore = useGameStore();
 const stats = computed(() => gameStore.stats);
 const debt = computed(() => gameStore.debt);
 
-function formatBillions(value: number): string {
+// Debt/loan state
+const isOverMax = computed(() => gameStore.isOverMaxLoan());
+const isNearMax = computed(() => gameStore.isNearMaxLoan());
+const maxLoan = computed(() => gameStore.getMaxLoan());
+
+const moneyClass = computed(() => {
+  if (isOverMax.value) return 'crisis';
+  if (isNearMax.value) return 'warning';
+  if (stats.value.money < 0) return 'danger';
+  return '';
+});
+
+function formatMillions(value: number): string {
   if (value >= 1000) {
-    return (value / 1000).toFixed(1) + 'T'; // Trillions if over 1000B
+    return (value / 1000).toFixed(1) + 'B'; // Billions if over 1000M
   }
-  return value.toString();
+  if (value <= -1000) {
+    return (value / 1000).toFixed(1) + 'B'; // Negative billions
+  }
+  return value.toString() + 'M';
 }
 </script>
 
@@ -61,25 +78,30 @@ function formatBillions(value: number): string {
   padding: 6px 8px;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 12px;
+  overflow: hidden;
+  max-width: 100%;
 }
 
 .stats-row.main-stats {
   display: flex;
   flex-wrap: nowrap;
-  gap: 6px;
+  gap: 4px;
   justify-content: space-between;
+  overflow: hidden;
+  max-width: 100%;
 }
 
 .stat-item {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
+  gap: 2px;
+  padding: 4px 6px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  min-width: 70px;
-  flex: 1;
+  min-width: 0;
+  flex: 1 1 0;
   transition: all 0.3s ease;
+  overflow: hidden;
 }
 
 .stat-item.danger {
@@ -115,7 +137,8 @@ function formatBillions(value: number): string {
   background: rgba(0, 0, 0, 0.3);
   border-radius: 3px;
   overflow: hidden;
-  min-width: 30px;
+  min-width: 20px;
+  max-width: 60px;
 }
 
 .stat-bar-fill {
@@ -175,14 +198,15 @@ function formatBillions(value: number): string {
 }
 
 .stat-item.money {
-  flex: 1.2;
-  min-width: 90px;
+  flex: 1.2 1 0;
+  min-width: 0;
+  position: relative;
 }
 
 .money-value {
   flex: 1;
   text-align: center;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #22c55e;
   white-space: nowrap;
   overflow: hidden;
@@ -217,5 +241,65 @@ function formatBillions(value: number): string {
 
 .stat-item.coin-value.boost .coin-value-text {
   color: #22c55e;
+}
+
+/* Debt Crisis Styles */
+.stat-item.money.crisis {
+  background: rgba(220, 38, 38, 0.4);
+  animation: pulse-crisis 0.8s infinite;
+  border: 1px solid #ef4444;
+}
+
+.stat-item.money.warning {
+  background: rgba(245, 158, 11, 0.3);
+  border: 1px solid #f59e0b;
+}
+
+@keyframes pulse-crisis {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 8px 2px rgba(220, 38, 38, 0.4);
+    transform: scale(1.02);
+  }
+}
+
+.debt-crisis-badge {
+  position: absolute;
+  right: -2px;
+  top: -2px;
+  background: #dc2626;
+  color: white;
+  font-size: 0.6rem;
+  font-weight: bold;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: badge-pulse 1s infinite;
+}
+
+.debt-warning-badge {
+  position: absolute;
+  right: -2px;
+  top: -2px;
+  background: #f59e0b;
+  color: white;
+  font-size: 0.55rem;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
 }
 </style>

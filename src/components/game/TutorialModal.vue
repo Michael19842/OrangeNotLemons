@@ -127,6 +127,17 @@ const steps: TutorialStep[] = [
     position: 'center'
   },
   {
+    title: 'Cliff Street - Stock Market',
+    icon: '📈',
+    description: `The <strong>Cliff Street</strong> tab shows the stock market!<br><br>
+      • <strong>Buy</strong> stocks you think will rise<br>
+      • <strong>Short</strong> stocks you think will fall<br>
+      • Your <strong>plans affect stock prices!</strong><br><br>
+      Research plans to discover which stocks they impact. Big profits (or losses) await!`,
+    highlight: '.tab-btn:nth-child(2)',
+    position: 'bottom'
+  },
+  {
     title: 'Open the Plan Selector',
     icon: '🃏',
     description: `Now let's look at your plan options.<br><br>Click the <strong>Plan</strong> button below!`,

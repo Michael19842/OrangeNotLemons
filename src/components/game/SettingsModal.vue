@@ -51,21 +51,51 @@
         <!-- Game Settings -->
         <div class="setting-section">
           <h3 class="section-title">🎮 Gameplay</h3>
-          
+
           <div class="setting-item">
             <label class="setting-label">
               <span class="label-text">Turn Timer</span>
-              <span class="label-value">{{ turnDuration }}s</span>
+              <span class="label-value">{{ turnDurationDisplay }}</span>
             </label>
             <input
               type="range"
-              min="15"
-              max="60"
-              step="5"
+              min="0"
+              max="180"
+              step="15"
               :value="turnDuration"
               @input="handleTimerChange"
               class="volume-slider"
             />
+            <div class="timer-presets">
+              <button
+                class="preset-btn"
+                :class="{ active: turnDuration === 0 }"
+                @click="setTurnDuration(0)"
+              >
+                ∞
+              </button>
+              <button
+                class="preset-btn"
+                :class="{ active: turnDuration === 60 }"
+                @click="setTurnDuration(60)"
+              >
+                60s
+              </button>
+              <button
+                class="preset-btn"
+                :class="{ active: turnDuration === 90 }"
+                @click="setTurnDuration(90)"
+              >
+                90s
+              </button>
+              <button
+                class="preset-btn"
+                :class="{ active: turnDuration === 120 }"
+                @click="setTurnDuration(120)"
+              >
+                120s
+              </button>
+            </div>
           </div>
         </div>
         
@@ -91,13 +121,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 
 defineEmits(['close']);
 
 const bgmVolume = ref(0.5);
 const sfxVolume = ref(0.7);
-const turnDuration = ref(30);
+const turnDuration = ref(90); // Default 90 seconds
+
+// Display text for turn duration
+const turnDurationDisplay = computed(() => {
+  if (turnDuration.value === 0) return 'Unlimited';
+  return `${turnDuration.value}s`;
+});
 
 onMounted(() => {
   loadSettings();
@@ -109,8 +145,13 @@ function loadSettings() {
     const settings = JSON.parse(saved);
     bgmVolume.value = settings.bgmVolume ?? 0.5;
     sfxVolume.value = settings.sfxVolume ?? 0.7;
-    turnDuration.value = settings.turnDuration ?? 30;
+    turnDuration.value = settings.turnDuration ?? 90;
   }
+}
+
+function setTurnDuration(duration: number) {
+  turnDuration.value = duration;
+  saveSettings();
 }
 
 function saveSettings() {
@@ -155,7 +196,7 @@ function testSound() {
 function resetSettings() {
   bgmVolume.value = 0.5;
   sfxVolume.value = 0.7;
-  turnDuration.value = 30;
+  turnDuration.value = 90;
   saveSettings();
 }
 </script>
@@ -366,5 +407,37 @@ function resetSettings() {
   background: rgba(239, 68, 68, 0.3);
   border-color: rgba(239, 68, 68, 0.6);
   transform: translateY(-2px);
+}
+
+/* Timer presets */
+.timer-presets {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.preset-btn {
+  flex: 1;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #888;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.preset-btn:hover {
+  background: rgba(255, 107, 53, 0.1);
+  border-color: rgba(255, 107, 53, 0.4);
+  color: #ff6b35;
+}
+
+.preset-btn.active {
+  background: rgba(255, 107, 53, 0.2);
+  border-color: #ff6b35;
+  color: #ff6b35;
 }
 </style>

@@ -67,7 +67,7 @@
             <div class="financial-item">
               <span class="fin-label">Net Worth Change</span>
               <span class="fin-value" :class="{ positive: netWorthChange > 0, negative: netWorthChange < 0 }">
-                {{ netWorthChange > 0 ? '+' : '' }}{{ netWorthChange }}B
+                {{ netWorthChange > 0 ? '+' : '' }}{{ netWorthChange }}M
               </span>
             </div>
             <div class="financial-item">
@@ -163,7 +163,7 @@ const statComparison = computed(() => {
       start: start.money,
       current: current.money,
       change: current.money - start.money,
-      suffix: 'B',
+      suffix: 'M',
       trend: current.money > start.money ? 'up' : current.money < start.money ? 'down' : 'neutral',
       trendClass: current.money > start.money ? 'positive' : current.money < start.money ? 'negative' : ''
     },

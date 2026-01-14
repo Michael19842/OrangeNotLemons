@@ -1,5 +1,6 @@
 // Trading sound effects and animations
 // Uses Web Audio API for sounds and CSS animations for visuals
+import { useAudio } from '@/composables/useAudio';
 
 let audioContext: AudioContext | null = null;
 
@@ -10,11 +11,36 @@ function getAudioContext(): AudioContext {
   return audioContext;
 }
 
+// Get volume from settings
+function getSfxVolume(): number {
+  const saved = localStorage.getItem('gameSettings');
+  if (saved) {
+    const settings = JSON.parse(saved);
+    return settings.sfxVolume ?? 0.7;
+  }
+  return 0.7;
+}
+
+function isMuted(): boolean {
+  const { isMuted } = useAudio();
+  return isMuted.value;
+}
+
 // Play a profit sound (ascending arpeggio)
 export function playProfitSound(intensity: 'small' | 'medium' | 'big' = 'medium') {
+  if (isMuted()) return;
+
+  // Use mp3 file via useAudio
+  const { playSound } = useAudio();
+  playSound('tradeProfit');
+}
+
+// Legacy Web Audio implementation (kept for reference)
+function _playProfitSoundWebAudio(intensity: 'small' | 'medium' | 'big' = 'medium') {
   try {
     const ctx = getAudioContext();
     const now = ctx.currentTime;
+    const volume = getSfxVolume();
 
     const baseFreq = intensity === 'big' ? 440 : intensity === 'medium' ? 392 : 349;
     const notes = [1, 1.25, 1.5, 2]; // Major chord progression
@@ -32,7 +58,7 @@ export function playProfitSound(intensity: 'small' | 'medium' | 'big' = 'medium'
 
       const startTime = now + i * duration;
       gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(0.15, startTime + 0.02);
+      gain.gain.linearRampToValueAtTime(0.15 * volume, startTime + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration * 2);
 
       osc.start(startTime);
@@ -48,7 +74,7 @@ export function playProfitSound(intensity: 'small' | 'medium' | 'big' = 'medium'
         gain.connect(ctx.destination);
         osc.frequency.value = 880;
         osc.type = 'sine';
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.setValueAtTime(0.1 * volume, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
         osc.start();
         osc.stop(ctx.currentTime + 0.3);
@@ -61,92 +87,29 @@ export function playProfitSound(intensity: 'small' | 'medium' | 'big' = 'medium'
 
 // Play a loss sound (descending tone)
 export function playLossSound(intensity: 'small' | 'medium' | 'big' = 'medium') {
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
+  if (isMuted()) return;
 
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    const startFreq = intensity === 'big' ? 400 : intensity === 'medium' ? 350 : 300;
-    const endFreq = intensity === 'big' ? 150 : intensity === 'medium' ? 180 : 200;
-    const duration = intensity === 'big' ? 0.5 : intensity === 'medium' ? 0.35 : 0.25;
-
-    osc.frequency.setValueAtTime(startFreq, now);
-    osc.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
-    osc.type = 'sawtooth';
-
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
-
-    osc.start(now);
-    osc.stop(now + duration);
-  } catch (e) {
-    console.warn('Audio not available:', e);
-  }
+  // Use mp3 file via useAudio
+  const { playSound } = useAudio();
+  playSound('tradeLoss');
 }
 
 // Play buy/sell confirmation sound
 export function playTradeSound(type: 'buy' | 'sell') {
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
+  if (isMuted()) return;
 
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    if (type === 'buy') {
-      osc.frequency.setValueAtTime(523, now); // C5
-      osc.frequency.setValueAtTime(659, now + 0.08); // E5
-    } else {
-      osc.frequency.setValueAtTime(659, now); // E5
-      osc.frequency.setValueAtTime(523, now + 0.08); // C5
-    }
-
-    osc.type = 'square';
-    gain.gain.setValueAtTime(0.08, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-
-    osc.start(now);
-    osc.stop(now + 0.15);
-  } catch (e) {
-    console.warn('Audio not available:', e);
-  }
+  // Use mp3 file via useAudio
+  const { playSound } = useAudio();
+  playSound(type === 'buy' ? 'buy' : 'sell');
 }
 
 // Play research reveal sound
 export function playResearchSound() {
-  try {
-    const ctx = getAudioContext();
-    const now = ctx.currentTime;
+  if (isMuted()) return;
 
-    [392, 494, 587].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.frequency.value = freq;
-      osc.type = 'triangle';
-
-      const startTime = now + i * 0.1;
-      gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(0.12, startTime + 0.03);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2);
-
-      osc.start(startTime);
-      osc.stop(startTime + 0.2);
-    });
-  } catch (e) {
-    console.warn('Audio not available:', e);
-  }
+  // Use mp3 file via useAudio
+  const { playSound } = useAudio();
+  playSound('research');
 }
 
 // Create confetti explosion animation
@@ -243,7 +206,7 @@ export function animateNumber(
   to: number,
   duration: number = 500,
   prefix: string = '$',
-  suffix: string = 'B'
+  suffix: string = 'M'
 ) {
   const startTime = performance.now();
   const diff = to - from;
